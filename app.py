@@ -16,9 +16,9 @@ Pretty cool huh!
 """)
 
 topics = ["Creating Tables & Inserting Data", "Updating or Deleting Data",
-                                            "Simple SELECT Statements", "WHERE Clause", "Simple Aggregation (MIN, MAX, AVG, COUNT, SUM)",
-                                            "GROUP BY", "JOINs (INNER, LEFT, RIGHT, OUTER)", "Subqueries", "EXISTS / NOT EXISTS",
-                                            "'Double NOT EXISTS'", "Creating VIEWs"]
+          "Simple SELECT Statements", "WHERE Clause", "Simple Aggregation (MIN, MAX, AVG, COUNT, SUM)",
+          "GROUP BY", "JOINs (INNER, LEFT, RIGHT, OUTER)", "Subqueries", "EXISTS / NOT EXISTS",
+          "'Double NOT EXISTS'", "Creating VIEWs"]
 
 def to_quiz(db_file, topics):
   # run quiz page
@@ -48,9 +48,7 @@ with st.sidebar:
   uploaded_db_file = st.file_uploader("Upload an sqlite3 .db file:", type=".db", key="db_upload")
 
   # topic selection
-  topic_selection = st.multiselect("Select SQL topics to be tested on:",
-                                   options=topics
-                                   )
+  topic_selection = st.multiselect("Select SQL topics to be tested on:", options=topics)
 
   # button to take this data and load the test page, run the model etc...
   st.button("Make me a quiz!", on_click=button_pressed, args=[uploaded_db_file, topic_selection])
