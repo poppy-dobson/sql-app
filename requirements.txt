@@ -2,6 +2,7 @@ streamlit
 sqlite3
 sqlalchemy
 pydantic
+langchain
 langchain-huggingface
 python-dotenv
 # etc...
