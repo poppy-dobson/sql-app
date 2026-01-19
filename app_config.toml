@@ -1,0 +1,3 @@
+[model]
+endpoint="hf"
+# IN FUTURE UPDATES: can be "hf" (huggingface) | "openai" | etc etc
