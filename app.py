@@ -1,10 +1,14 @@
 import streamlit as st
 
 st.session_state.db_file_bytes = None
+st.session_state.db_path = "temp/user_db.db"
 st.session_state.topics = []
 st.session_state.num_questions = 5 # in future: this should read from a config file to be manually set
 
-from database import check_valid_db_file
+from database import check_valid_db_file, write_db_bytes_to_file
+from util import remove_file_if_exists
+
+remove_file_if_exists(st.session_state.db_path)
 
 st.title("SQL practice app :0")
 
@@ -61,8 +65,10 @@ def quiz_can_be_made(db_file, topics):
 
 with st.sidebar:
   uploaded_db_file = st.file_uploader("Upload an sqlite3 .db file:", type=".db", key="db_upload")
-  if not st.session_state.db_file_bytes:
+  if not st.session_state.db_file_bytes and uploaded_db_file:
     st.session_state.db_file_bytes = uploaded_db_file
+    write_db_bytes_to_file(st.session_state.db_file_bytes, st.session_state.db_path) # HANDLE ERRORS
+
 
   # topic selection
   topic_selection = st.multiselect("Select SQL topics to be tested on:", options=topics)
