@@ -1,0 +1,8 @@
+[model]
+endpoint="hf"
+# IN FUTURE UPDATES: can be "hf" (huggingface) | "openai" | etc etc
+repo_id="..."
+provider="..."
+
+[quiz]
+num_questions=5
