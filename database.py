@@ -1,10 +1,16 @@
 import sqlalchemy as sqla
+import io
 from sqlalchemy import create_engine
 # import sqlite3
 
 # ...
 
-def check_valid_db_file(db_bytes):
+def write_db_bytes_to_file(db_bytes, file_path = "temp/user_db.db"):
+  # ADD ERROR HANDLING!
+  with open(file_path, "wb") as f:
+    f.write(db_bytes.getbuffer())
+
+def check_valid_db_file(db_file):
   '''
   args:
   db_bytes: BytesIO of an sqlite database file
