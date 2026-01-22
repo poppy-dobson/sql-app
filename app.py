@@ -25,7 +25,7 @@ Pretty cool huh!
 &#8592; Upload and select topics in the sidebar on the left :)
 """)
 
-topics = ["Creating Tables & Inserting Data", "Updating or Deleting Data",
+topics = ["Creating Tables & Inserting Data", "Updating Data",
           "Simple SELECT Statements", "WHERE Clause", "Simple Aggregation (MIN, MAX, AVG, COUNT, SUM)",
           "GROUP BY", "JOINs (INNER, LEFT, RIGHT, OUTER)", "Subqueries", "EXISTS / NOT EXISTS",
           "'Double NOT EXISTS'", "Creating VIEWs"]
