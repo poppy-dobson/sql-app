@@ -1,5 +1,8 @@
 # the streamlit page for the 'quiz' section
 import streamlit as st
+from util import load_app_config
+
+config = load_app_config()
 
 # from database import ...
 # from model import ...
@@ -34,7 +37,11 @@ st.title("the quiz!")
 
 
 # here, before the form, will display the user's schema from the database object!
-# st.write(...)
+st.write("The database schema:")
+for table in st.session_state.database.get_schema():
+  if not table[0]: continue
+  table_formatted = table[0] + ';'
+  st.code(table_formatted, wrap_lines=True)
 
 def _quiz_submitted():
   for element in st.session_state.quiz_question_form_elements:
@@ -50,7 +57,7 @@ def _quiz_submitted():
   pass
 
 with st.form("quiz1") as quiz_form:
-  for i in range(1, 6):
+  for i in range(1, config['quiz']['num_questions'] + 1):
     st.session_state.quiz_question_form_elements.append(QuizQuestionFormElement(str(i)))
 
   submitted = st.form_submit_button("Submit Answers")

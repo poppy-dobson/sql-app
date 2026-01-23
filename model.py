@@ -1,6 +1,6 @@
 #import requests
 import os
-import tomllib
+import re
 from pydantic import BaseModel, Field, field_validator
 from typing import List
 from langchain_core.prompts import PromptTemplate
@@ -9,21 +9,15 @@ from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
 from dotenv import load_dotenv
 # ...
 
+from util import load_app_config
+
 # set-up
 
 load_dotenv()
 
 hf_api_key = os.environ['HUGGINGFACEHUB_API_TOKEN']
 
-with open("app_config.toml", "rb") as config_file:
-  config = tomllib.load(config_file)
-
-###
-
-class SQLQuizLLM: # overall handling of the whole process
-  def __init__(self):
-    pass
-
+####################################################
 
 class ModelQuizQuestionOutput(BaseModel):
   quiz_question: str
@@ -42,7 +36,57 @@ class ListOfQuizQuestions(BaseModel):
 
 quiz_question_parser = PydanticOutputParser(pydantic_object=ListOfQuizQuestions)
 
-input_template = """
+class SQLQuizLLM: # overall handling of the whole process
+  def __init__(self, config_dict):
+    self.config = config_dict
+    self.model = self.set_model()
+
+    self.quiz_prompt_template = self.set_prompt_template()
+    self.num_questions = self.config['quiz']['num_questions']
+
+
+    self.quiz_chain = self.quiz_prompt_template | self.model | quiz_question_parser
+
+  def set_model(self):
+    if self.config['model']['endpoint'] == 'hf':
+      hf_endpoint = HuggingFaceEndpoint(
+      repo_id=self.config['model']['repo_id'], provider=self.config['model']['provider'],
+      temperature=0.8,
+      max_new_tokens=768,
+      huggingfacehub_api_token=hf_api_key)
+
+      model = ChatHuggingFace(llm=hf_endpoint) # note to self: find another way of doing this at some point - i don't like the fact it has to use the conversation task
+    else:
+      # at the moment:
+      raise ValueError("invalid/unsupported endpoint given in config")
+      # but will handle other endpoints at some point 
+    return model
+
+  def generate_quiz(self, db_schema, db_rdbms, topic_list): # CHANGE THIS to just take a db object and get schema etc from that
+    valid_quiz = False
+    while not valid_quiz:
+      try:
+        response = self._get_quiz_questions_and_answers(db_schema, db_rdbms, topic_list)
+        return response.questions_and_answers
+      except:
+        pass
+      pass
+
+  def _parse_llm_response(self, response):
+    json_text = re.search(r'\{.*\}', response, re.DOTALL)
+    if json_text:
+      return json_text
+    raise ValueError('no valid JSON found')
+  
+  def _get_quiz_questions_and_answers(self, db_schema, db_rdbms, topic_list):
+    response = self.quiz_chain.invoke({"schema": db_schema,
+                                       "topics": str(topic_list),
+                                       "num_questions": str(self.num_questions),
+                                       "rdbms": db_rdbms})
+    return response
+  
+  def set_prompt_template(self):
+    text_template = """
 You are setting an SQL quiz, with {num_questions} questions.
 
 The database to use for questions has the following schema:
@@ -50,93 +94,57 @@ The database to use for questions has the following schema:
 
 Generate a list of {num_questions} question & answer pairs.
 Each question should ask the user to write a query specific to this database, and the answer is an SQL query that is the correct solution to the question.
-Questions should explicitly tell the user which columns to return, and the correct answers MUST incorpate at least one of the following SQL query aspects: {topics}.
+Questions should explicitly tell the user which columns to return, and the correct answers MUST incorpate at least one of the following SQL query topics: {topics}.
 Answer queries should end in a semi-colon, and be written in one line with no breaks.
 
 Ensure that answer queries are correct, and involve at least one of the topics given.
+Queries should be written in {rdbms} syntax.
 
 {format_instruction}
 
 Return nothing but a valid JSON document described above.
 """
+    
+    prompt_template = PromptTemplate(
+    input_variables=["schema", "topics", "num_questions", "rdbms"],
+    template=text_template,
+    partial_variables={'format_instruction': quiz_question_parser.get_format_instructions()})
+    
+    return prompt_template
 
-# Respond with nothing else but the output in the following format, as JSON:
 
-sql_quiz_prompt_template = PromptTemplate(
-  input_variables=["schema", "topics", "num_questions"],
-  template=input_template,
-  partial_variables={'format_instruction': quiz_question_parser.get_format_instructions()}
-)
 
-#####################################
-# test for now
-temp_quiz_model = HuggingFaceEndpoint(
-  #repo_id="defog/llama-3-sqlcoder-8b", provider="featherless-ai", # does output wrong and worse
-  #repo_id="Qwen/Qwen3-4B-Instruct-2507", provider="nscale", 
-  repo_id="Qwen/Qwen2.5-Coder-32B-Instruct", provider="nscale", # BEST ONE SO FAR
-  #repo_id="openai/gpt-oss-20b", provider="novita", 
-  temperature=0.7,
-  max_new_tokens=768,
-  huggingfacehub_api_token=hf_api_key
-) # will be added to
+if __name__ == "__main__":
+  test_class = SQLQuizLLM(load_app_config())
 
-temp_chat = ChatHuggingFace(llm=temp_quiz_model) # note to self: find another way of doing this at some point - i don't like the fact it has to use the conversation task
-
-quiz_chain = sql_quiz_prompt_template | temp_chat | quiz_question_parser
-
-test_response = quiz_chain.invoke({"schema": """
-CREATE TABLE platform (
-        id INTEGER PRIMARY KEY,
-        platform_name TEXT DEFAULT NULL
+  model = {'rdbms':'SQLite', 'schema': """
+CREATE TABLE user (
+	id INTEGER PRIMARY KEY,
+	first_name TEXT NOT NULL,
+	last_name TEXT NOT NULL,
+	age INTEGER
 );
-CREATE TABLE genre (
-        id INTEGER PRIMARY KEY,
-        genre_name TEXT DEFAULT NULL
-);
-CREATE TABLE publisher (
-        id INTEGER PRIMARY KEY,
-        publisher_name TEXT DEFAULT NULL
-);
-CREATE TABLE region (
-        id INTEGER PRIMARY KEY,
-        region_name TEXT DEFAULT NULL
-);
-CREATE TABLE game (
-        id INTEGER PRIMARY KEY,
-        genre_id INTEGER,
-        game_name TEXT DEFAULT NULL,
-        CONSTRAINT fk_gm_gen FOREIGN KEY (genre_id) REFERENCES genre(id)
-);
-CREATE TABLE game_publisher (
-        id INTEGER PRIMARY KEY,
-        game_id INTEGER DEFAULT NULL,
-        publisher_id INTEGER DEFAULT NULL,
-        CONSTRAINT fk_gpu_gam FOREIGN KEY (game_id) REFERENCES game(id),
-        CONSTRAINT fk_gpu_pub FOREIGN KEY (publisher_id) REFERENCES publisher(id)
-);
-CREATE TABLE game_platform (
-        id INTEGER PRIMARY KEY,
-        game_publisher_id INTEGER DEFAULT NULL,
-        platform_id INTEGER DEFAULT NULL,
-        release_year INTEGER DEFAULT NULL,
-        CONSTRAINT fk_gpl_gp FOREIGN KEY (game_publisher_id) REFERENCES game_publisher(id),
-        CONSTRAINT fk_gpl_pla FOREIGN KEY (platform_id) REFERENCES platform(id)
-);
-CREATE TABLE region_sales (
-        region_id INTEGER DEFAULT NULL,
-        game_platform_id INTEGER DEFAULT NULL,
-        num_sales REAL,
-   CONSTRAINT fk_rs_gp FOREIGN KEY (game_platform_id) REFERENCES game_platform(id),
-        CONSTRAINT fk_rs_reg FOREIGN KEY (region_id) REFERENCES region(id)
-);
-""",
-                                   "topics": str(["Aggregate Functions", "GROUP BY", "Subqueries", "EXISTS / NOT EXISTS",
-          "'Double NOT EXISTS' (Nested NOT EXISTS)"]),
-                                   "num_questions": str(3)})
 
+CREATE TABLE item (
+	id INTEGER PRIMARY KEY,
+	name TEXT NOT NULL,
+	price REAL NOT NULL
+);
 
-for question in test_response.questions_and_answers:
-  print(question.quiz_question)
-  print(question.correct_sql_answer)
+CREATE TABLE order (
+	id INTEGER PRIMARY KEY,
+	user_id INTEGER NOT NULL,
+	item_id INTEGER NOT NULL,
+	qty INTEGER DEFAULT 1,
+	FOREIGN KEY (user_id) REFERENCES user(id),
+	FOREIGN KEY (item_id) REFERENCES item(id)
+);
+"""}
+  topics = ['EXISTS', 'NOT EXISTS', 'NOT IN', 'ANY / ALL']
 
-#print(quiz_question_parser.get_format_instructions())
+  quiz = test_class.generate_quiz(model['schema'], model['rdbms'], topics)
+
+  for q_and_a in quiz:
+    print(q_and_a.quiz_question)
+    print(q_and_a.correct_sql_answer)
+    print()

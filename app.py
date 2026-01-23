@@ -35,7 +35,6 @@ topics = ["Creating Tables & Inserting Data", "Updating Data",
 def to_quiz(db_file, topics):
   # run quiz page
   st.switch_page("pages/quiz.py")
-  pass
 
 
 def _check_topic_selection(topics):
@@ -43,16 +42,9 @@ def _check_topic_selection(topics):
     return True
   return False
 
-# def button_pressed(db_file, topics):
-#   if _check_topic_selection(topics) and check_valid_db_file(db_file):
-#     st.switch_page("pages/quiz.py")
-#     #to_quiz(db_file, topics)
-#   elif check_valid_db_file(db_file):
-#     st.toast("You must select at least 3 topics!")
-#   else:
-#     st.toast("You must upload a valid database file, try again!")
 
 def quiz_can_be_made(topics):
+  print("quiz cbm run")
   if _check_topic_selection(topics) and st.session_state.database.assert_valid_db_file():
     return True
   elif not _check_topic_selection(topics):
@@ -70,11 +62,6 @@ with st.sidebar:
     except Exception as e:
       st.toast("invalid database uploaded")
       st.toast(str(e))
-
-  # if not st.session_state.db_file_bytes and uploaded_db_file:
-  #   st.session_state.db_file_bytes = uploaded_db_file
-  #   SQLiteUserDatabase.write_db_bytes_to_file(st.session_state.db_file_bytes, st.session_state.db_path) # HANDLE ERRORS
-
 
   # topic selection
   topic_selection = st.multiselect("Select SQL topics to be tested on:", options=topics)

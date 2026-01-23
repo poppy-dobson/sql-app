@@ -1,8 +1,8 @@
 [model]
 endpoint="hf"
 # IN FUTURE UPDATES: can be "hf" (huggingface) | "openai" | etc etc
-repo_id="..."
-provider="..."
+repo_id="Qwen/Qwen2.5-Coder-32B-Instruct"
+provider="nscale"
 
 [quiz]
-num_questions=5
+num_questions=3 # in the config rather than changeable within the app just to keep an eye on credit usage
