@@ -1,11 +1,13 @@
 import streamlit as st
 
+st.session_state.database = None # UserDatabase, SQLiteUserDatabase, etc object
+
 st.session_state.db_file_bytes = None
 st.session_state.db_path = "temp/user_db.db"
 st.session_state.topics = []
 st.session_state.num_questions = 5 # in future: this should read from a config file to be manually set
 
-from database import check_valid_db_file, write_db_bytes_to_file
+from database import UserDatabase, SQLiteUserDatabase
 from util import remove_file_if_exists
 
 remove_file_if_exists(st.session_state.db_path)
@@ -35,9 +37,6 @@ def to_quiz(db_file, topics):
   st.switch_page("pages/quiz.py")
   pass
 
-# def _check_valid_db_file(db_file):
-#   # for now:
-#   return True
 
 def _check_topic_selection(topics):
   if len(topics) >= 3:
@@ -53,8 +52,8 @@ def _check_topic_selection(topics):
 #   else:
 #     st.toast("You must upload a valid database file, try again!")
 
-def quiz_can_be_made(db_file, topics):
-  if _check_topic_selection(topics) and check_valid_db_file(db_file):
+def quiz_can_be_made(topics):
+  if _check_topic_selection(topics) and st.session_state.database.assert_valid_db_file():
     return True
   elif not _check_topic_selection(topics):
     st.toast("You must select at least 3 topics!")
@@ -65,9 +64,16 @@ def quiz_can_be_made(db_file, topics):
 
 with st.sidebar:
   uploaded_db_file = st.file_uploader("Upload an sqlite3 .db file:", type=".db", key="db_upload")
-  if not st.session_state.db_file_bytes and uploaded_db_file:
-    st.session_state.db_file_bytes = uploaded_db_file
-    write_db_bytes_to_file(st.session_state.db_file_bytes, st.session_state.db_path) # HANDLE ERRORS
+  if uploaded_db_file and not st.session_state.database:
+    try:
+      st.session_state.database = SQLiteUserDatabase(uploaded_db_file)
+    except Exception as e:
+      st.toast("invalid database uploaded")
+      st.toast(str(e))
+
+  # if not st.session_state.db_file_bytes and uploaded_db_file:
+  #   st.session_state.db_file_bytes = uploaded_db_file
+  #   SQLiteUserDatabase.write_db_bytes_to_file(st.session_state.db_file_bytes, st.session_state.db_path) # HANDLE ERRORS
 
 
   # topic selection
@@ -79,7 +85,7 @@ with st.sidebar:
                              args=[uploaded_db_file, topic_selection])
   
   if button_clicked:
-    if quiz_can_be_made(st.session_state.db_file_bytes, st.session_state.topics):
+    if quiz_can_be_made(st.session_state.topics):
       st.switch_page("pages/quiz.py")
     else:
       st.toast("INVALID")
