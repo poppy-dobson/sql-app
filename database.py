@@ -7,14 +7,23 @@ from sqlalchemy import create_engine, text
 class UserDatabase:
   def __init__(self, engine_string:str):
     self.engine = create_engine(engine_string, connect_args={"autocommit": False})
+    self.rdbms = engine_string.split('/')[0]
     self.schema = self._set_schema()
+    self.tables = self.get_tables()
     self.assert_db_contains_enough_data()
+    self.sample_data = self.get_sample_rows()
+
+  def get_sample_rows(self):
+    sample_rows = {}
+    for table in self.tables:
+      rows = self.execute_query(f"SELECT * FROM {table} LIMIT 3;")
+      sample_rows[table] = rows
+    return sample_rows
 
   def assert_db_contains_enough_data(self):
-    tables = self.get_tables()
-    if len(tables) < 3:
+    if len(self.tables) < 3:
       raise ValueError("database doesn't contain enough tables (3 minimum)")
-    for table in tables:
+    for table in self.tables:
       num_rows = self.execute_query(f"SELECT COUNT(*) FROM {table};")[0][0]
       if num_rows < 4:
         raise ValueError("a table doesn't contain enough rows of data (4 minimum)")
@@ -56,9 +65,13 @@ class SQLiteUserDatabase(UserDatabase):
     self.db_engine_string = self.sqlite_engine_string(self.db_file_path)
     self.engine = create_engine(self.db_engine_string)
 
+    self.schema = self._set_schema()
+    self.tables = self.get_tables()
+
     self.assert_db_contains_enough_data()
 
-    self.schema = self._set_schema()
+    self.sample_data = self.get_sample_rows()
+    
 
   def write_db_bytes_to_file(self, db_bytes, file_path):
     try:

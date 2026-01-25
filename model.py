@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 # ...
 
 from util import load_app_config
+from database import UserDatabase, SQLiteUserDatabase
 
 # set-up
 
@@ -37,11 +38,13 @@ class ListOfQuizQuestions(BaseModel):
 quiz_question_parser = PydanticOutputParser(pydantic_object=ListOfQuizQuestions)
 
 class SQLQuizLLM: # overall handling of the whole process
-  def __init__(self, config_dict):
+  def __init__(self, config_dict, database: UserDatabase | SQLiteUserDatabase):
     self.config = config_dict
     self.model = self.set_model()
+    self.database = database
 
     self.quiz_prompt_template = self.set_prompt_template()
+    self.feedback_prompt_template = self.set_feedback_template()
     self.num_questions = self.config['quiz']['num_questions']
 
 
@@ -62,11 +65,11 @@ class SQLQuizLLM: # overall handling of the whole process
       # but will handle other endpoints at some point 
     return model
 
-  def generate_quiz(self, db_schema, db_rdbms, topic_list): # CHANGE THIS to just take a db object and get schema etc from that
+  def generate_quiz(self, topic_list):
     valid_quiz = False
     while not valid_quiz:
       try:
-        response = self._get_quiz_questions_and_answers(db_schema, db_rdbms, topic_list)
+        response = self._get_quiz_questions_and_answers(topic_list)
         return response.questions_and_answers
       except:
         pass
@@ -78,11 +81,12 @@ class SQLQuizLLM: # overall handling of the whole process
       return json_text
     raise ValueError('no valid JSON found')
   
-  def _get_quiz_questions_and_answers(self, db_schema, db_rdbms, topic_list):
-    response = self.quiz_chain.invoke({"schema": db_schema,
+  def _get_quiz_questions_and_answers(self, topic_list):
+    response = self.quiz_chain.invoke({"schema": self.database.get_schema(),
+                                       "sample_data": self.database.sample_data,
                                        "topics": str(topic_list),
                                        "num_questions": str(self.num_questions),
-                                       "rdbms": db_rdbms})
+                                       "rdbms": self.database.rdbms})
     return response
   
   def set_prompt_template(self):
@@ -92,9 +96,12 @@ You are setting an SQL quiz, with {num_questions} questions.
 The database to use for questions has the following schema:
 {schema}
 
+The following are examples of data in each table in the database:
+{sample_data}
+
 Generate a list of {num_questions} question & answer pairs.
 Each question should ask the user to write a query specific to this database, and the answer is an SQL query that is the correct solution to the question.
-Questions should explicitly tell the user which columns to return, and the correct answers MUST incorpate at least one of the following SQL query topics: {topics}.
+Questions should explicitly tell the user which columns to return, and the correct answers MUST incorpate at least one of the following SQL query topics: {topics}. You should use values from the example data provided, if questions require querying against specific values of columns.
 Answer queries should end in a semi-colon, and be written in one line with no breaks.
 
 Ensure that answer queries are correct, and involve at least one of the topics given.
@@ -111,40 +118,52 @@ Return nothing but a valid JSON document described above.
     partial_variables={'format_instruction': quiz_question_parser.get_format_instructions()})
     
     return prompt_template
+  
+  def set_feedback_template(self):
+    text_template = """
+You are marking an SQL quiz.
+
+The database used in the questions has the following schema:
+{schema}
+
+[CARRY THIS ON]
+
+"""
+    pass
 
 
 
-if __name__ == "__main__":
-  test_class = SQLQuizLLM(load_app_config())
+# if __name__ == "__main__":
+#   test_class = SQLQuizLLM(load_app_config())
 
-  model = {'rdbms':'SQLite', 'schema': """
-CREATE TABLE user (
-	id INTEGER PRIMARY KEY,
-	first_name TEXT NOT NULL,
-	last_name TEXT NOT NULL,
-	age INTEGER
-);
+#   model = {'rdbms':'SQLite', 'schema': """
+# CREATE TABLE user (
+# 	id INTEGER PRIMARY KEY,
+# 	first_name TEXT NOT NULL,
+# 	last_name TEXT NOT NULL,
+# 	age INTEGER
+# );
 
-CREATE TABLE item (
-	id INTEGER PRIMARY KEY,
-	name TEXT NOT NULL,
-	price REAL NOT NULL
-);
+# CREATE TABLE item (
+# 	id INTEGER PRIMARY KEY,
+# 	name TEXT NOT NULL,
+# 	price REAL NOT NULL
+# );
 
-CREATE TABLE order (
-	id INTEGER PRIMARY KEY,
-	user_id INTEGER NOT NULL,
-	item_id INTEGER NOT NULL,
-	qty INTEGER DEFAULT 1,
-	FOREIGN KEY (user_id) REFERENCES user(id),
-	FOREIGN KEY (item_id) REFERENCES item(id)
-);
-"""}
-  topics = ['EXISTS', 'NOT EXISTS', 'NOT IN', 'ANY / ALL']
+# CREATE TABLE order (
+# 	id INTEGER PRIMARY KEY,
+# 	user_id INTEGER NOT NULL,
+# 	item_id INTEGER NOT NULL,
+# 	qty INTEGER DEFAULT 1,
+# 	FOREIGN KEY (user_id) REFERENCES user(id),
+# 	FOREIGN KEY (item_id) REFERENCES item(id)
+# );
+# """}
+#   topics = ['EXISTS', 'NOT EXISTS', 'NOT IN', 'ANY / ALL']
 
-  quiz = test_class.generate_quiz(model['schema'], model['rdbms'], topics)
+#   quiz = test_class.generate_quiz(model['schema'], model['rdbms'], topics)
 
-  for q_and_a in quiz:
-    print(q_and_a.quiz_question)
-    print(q_and_a.correct_sql_answer)
-    print()
+#   for q_and_a in quiz:
+#     print(q_and_a.quiz_question)
+#     print(q_and_a.correct_sql_answer)
+#     print()
