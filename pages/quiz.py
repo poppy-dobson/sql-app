@@ -7,8 +7,6 @@ config = load_app_config()
 from database import UserDatabase, SQLiteUserDatabase
 from model import SQLQuizLLM
 
-st.session_state.quiz_question_form_elements = []
-st.session_state.user_answers = []
 model = SQLQuizLLM(config, st.session_state.database)
 st.session_state.model = model
 
@@ -24,6 +22,9 @@ class QuizElement:
     st.write(self.question)
     self.open_to_response()
 
+    # for debugging
+    st.write(self.model_answer)
+
     st.divider()
 
   def open_to_response(self):
@@ -38,9 +39,7 @@ class QuizElement:
   def set_correct(self, is_correct):
     self.correct = is_correct
 
-# ...
 st.title("the quiz!")
-
 
 # here, before the form, will display the user's schema from the database object!
 st.write("The database schema:")
@@ -57,6 +56,7 @@ def mark_question(model_answer, user_answer):
     try:
       user_answer_result = st.session_state.database.execute_query(user_answer)
     except Exception as e: # make this more specific and return a specific error message
+      print("the user query failed to execute") # temp error handling
       return False
   
   if model_answer_result == user_answer_result:
@@ -64,6 +64,8 @@ def mark_question(model_answer, user_answer):
   return False
 
 def _quiz_submitted():
+  score = 0
+  incorrect_questions = []
   for element in st.session_state.quiz_question_form_elements:
     user_answer = element.get_user_answer()
     element.lock()
@@ -71,36 +73,89 @@ def _quiz_submitted():
 
     # mark each question as right/wrong
     correct = mark_question(element.model_answer, element.get_user_answer())
+
+    print(f"question is {correct}")
+
     element.set_correct(correct)
 
-    if not element.correct:
-      # get feedback from the llm
-      # st.session_state.model.get_feedback_on_incorrect_answer()
-      pass
+    if element.correct:
+      score += 1
+    else:
+      incorrect_questions.append(element)
+
+  print(f"incorrect questions: {incorrect_questions}")
+
+  if incorrect_questions:
+    feedback = get_feedback_on_incorrect_answers(incorrect_questions).comments
+    st.write(f"You got {score} question(s) right! Some feedback on your incorrect answer(s):")
+    for comment in feedback:
+      st.write(comment)
+  else:
+    st.write("You got every question right! Well Done!")
+
+def get_feedback_on_incorrect_answers(incorrect_questions):
+  prompt_input = ""
+  for element in incorrect_questions:
+    prompt_input = prompt_input + f"""
+Question: {element.question}
+
+Model Answer (correct): {element.model_answer}
+
+User Answer (incorrect): {element.get_user_answer()}
+
+"""
+    
+  feedback = st.session_state.model.get_quiz_answer_feedback(prompt_input)
+  return feedback
 
 def show_results():
+  # not implemented yet
   pass
 
-with st.spinner("generating quiz..."):
+# shoddy debugging
+print(st.session_state.quiz)
+print(st.session_state.submitted)
 
-  try:
-    quiz = st.session_state.model.generate_quiz(st.session_state.topics)
+if (not st.session_state.quiz) and (not st.session_state.submitted):
+  with st.spinner("generating quiz..."):
+
+    print("generating quiz")
+
     try:
-      assert len(quiz) == config['quiz']['num_questions']
+      quiz = st.session_state.model.generate_quiz(st.session_state.topics)
+      st.session_state.quiz = quiz
+
+      print("quiz made")
+      print(st.session_state.quiz)
+
+      try:
+        assert len(quiz) == config['quiz']['num_questions']
+      except:
+        print("quiz is not the right length")
     except:
-      print("quiz is not the right length")
-  except:
-    # temporary lazy error handling
-    print("quiz failed to generate")
+      # temporary lazy error handling
+      print("quiz failed to generate")
 
-with st.form("quiz1") as quiz_form:
-  for i, question_and_answer in enumerate(quiz):
-    st.session_state.quiz_question_form_elements.append(QuizElement(str(i+1), question_and_answer))
+def submit_pressed():
+  st.session_state.submitted = True
 
-  submitted = st.form_submit_button("Submit Answers")
-  if submitted:
-    st.toast("u submitted!")
-    _quiz_submitted()
+if not st.session_state.submitted:
+  with st.form("quiz1") as quiz_form:
+    print("form generated") # debugging
+    for i, question_and_answer in enumerate(st.session_state.quiz):
+      st.session_state.quiz_question_form_elements.append(QuizElement(str(i+1), question_and_answer))
+
+    #submitted = st.form_submit_button("Submit Answers")
+    st.form_submit_button("Submit Answers", on_click=submit_pressed)
+
+if st.session_state.submitted:
+
+  print("button pressed, quiz submitted")
+  print(st.session_state.submitted)
+
+  st.toast("u submitted the quiz!")
+  #st.session_state.submitted = True
+  _quiz_submitted()
 
 
   

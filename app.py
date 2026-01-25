@@ -7,6 +7,12 @@ st.session_state.db_path = "temp/user_db.db"
 st.session_state.topics = []
 st.session_state.num_questions = 5 # in future: this should read from a config file to be manually set
 
+# used in quiz.py
+st.session_state.quiz_question_form_elements = []
+st.session_state.user_answers = []
+st.session_state.quiz = None
+st.session_state.submitted = False
+
 from database import UserDatabase, SQLiteUserDatabase
 from util import remove_file_if_exists
 
@@ -20,21 +26,18 @@ Welcome :)
 This is a project I decided to make to ~~procrastinate revising for~~ help with revising for the databases exam!
             
 You can upload your own sqlite database file (.db), and an LLM will generate an SQL test, based on the topics you would like to revise,
-and the specific context of your databases content (for more realistic, real-world queries!).
+and the specific context of your database's content (for more realistic, real-world queries!).
 
 Pretty cool huh!
 
 &#8592; Upload and select topics in the sidebar on the left :)
+            
+PLEASE don't upload any databases with personal or sensitive data, or data that you shouldn't have access too. Don't get me in trouble :(
 """)
 
-topics = ["Creating Tables & Inserting Data", "Updating Data",
-          "Simple SELECT Statements", "WHERE Clause", "Simple Aggregation (MIN, MAX, AVG, COUNT, SUM)",
-          "GROUP BY", "JOINs (INNER, LEFT, RIGHT, OUTER)", "Subqueries", "EXISTS / NOT EXISTS",
-          "'Double NOT EXISTS'", "Creating VIEWs"]
-
-def to_quiz(db_file, topics):
-  # run quiz page
-  st.switch_page("pages/quiz.py")
+topics = ["Simple SELECT Statements", "WHERE Clause", "Simple Aggregation (MIN, MAX, AVG, COUNT, SUM)",
+          "GROUP BY", "HAVING", "ORDER BY", "LIMIT", "Joins (INNER, LEFT, RIGHT, OUTER)", "Self-joins", "Text-matching (LIKE)", "Subqueries", "EXISTS / NOT EXISTS",
+          "Nested NOT EXISTS", "Creating VIEWs"]
 
 
 def _check_topic_selection(topics):

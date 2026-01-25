@@ -50,7 +50,7 @@ class UserDatabase:
     except Exception as e:
       print("failed to execute query")
       print(str(e))
-      # raise ...
+      raise ValueError
 
 class SQLiteUserDatabase(UserDatabase):
   # overrides various checking functions to have sqlite-specific functionality (eg initially opening db from file not connection str)

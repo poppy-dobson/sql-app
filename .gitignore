@@ -3,3 +3,4 @@ to-do.txt
 venv/
 __pycache__/
 temp/
+.streamlit/secrets.toml
