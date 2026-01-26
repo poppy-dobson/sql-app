@@ -25,7 +25,7 @@ class QuizElement:
       self.open_to_response()
     else:
       st.write("Your answer:")
-      try: st.write(self.user_answer)
+      try: st.markdown("`" + self.user_answer + "`")
       except: pass # lazy error handling - will fix
 
     # for debugging
@@ -92,6 +92,7 @@ def quiz_submitted():
     st.write(f"You got {score} question(s) right! Some feedback on your incorrect answer(s):")
     for comment in feedback:
       st.write(comment)
+      st.divider()
   else:
     st.write("You got every question right! Well Done!")
 
@@ -107,8 +108,8 @@ Model Answer (correct): {element.model_answer}
 User Answer (incorrect): {element.get_user_answer()}
 
 """
-    
-  feedback = st.session_state.model.get_quiz_answer_feedback(prompt_input)
+  with st.spinner("getting feedback on incorrect results..."):
+    feedback = st.session_state.model.get_quiz_answer_feedback(prompt_input)
   return feedback
 
 def all_answers_have_been_entered():

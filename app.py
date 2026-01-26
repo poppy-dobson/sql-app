@@ -35,9 +35,10 @@ Pretty cool huh!
 PLEASE don't upload any databases with personal or sensitive data, or data that you shouldn't have access too. Don't get me in trouble :(
 """)
 
-topics = ["Simple SELECT Statements", "WHERE Clause", "Simple Aggregation (MIN, MAX, AVG, COUNT, SUM)",
-          "GROUP BY", "HAVING", "ORDER BY", "LIMIT", "Joins (INNER, LEFT, RIGHT, OUTER)", "Self-joins", "Text-matching (LIKE)", "Subqueries", "EXISTS / NOT EXISTS",
-          "Nested NOT EXISTS", "Creating VIEWs"]
+topics = ["CREATE TABLE", "CREATE VIEW", "INSERT INTO", "DELETE FROM ... WHERE", "UPDATE ... SET", "ALTER", "DROP",
+          "Simple SELECT Statements", "WHERE Clause", "Simple Aggregation (MIN, MAX, AVG, COUNT, SUM)",
+          "GROUP BY", "HAVING", "ORDER BY", "LIMIT", "Joins (INNER, LEFT, RIGHT, OUTER)", "Self-Joins", "Text-matching (LIKE)", "BETWEEN",
+          "Subqueries, IN / NOT IN", "EXISTS / NOT EXISTS", "Nested NOT EXISTS"]
 
 
 def _check_topic_selection(topics):

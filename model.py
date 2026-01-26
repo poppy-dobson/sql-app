@@ -28,7 +28,7 @@ class ModelQuizQuestionOutput(BaseModel):
   @classmethod
   def validate_sql_answer(cls, query: str):
     first_word = query.split()[0].upper()
-    if (first_word not in ['CREATE', 'SELECT', 'WITH']) or query[-1] != ';':
+    if (first_word not in ['CREATE', 'INSERT', 'UPDATE', 'ALTER', 'DROP', 'DELETE', 'SELECT', 'WITH']) or query[-1] != ';':
       raise ValueError('not a valid SQL query')
     return query
 
@@ -112,10 +112,12 @@ The following are examples of data in each table in the database:
 
 Generate a list of {num_questions} question & answer pairs.
 Each question should ask the user to write a query specific to this database, and the answer is an SQL query that is the correct solution to the question.
-Questions should explicitly tell the user which columns to return, and the correct answers MUST incorpate at least one of the following SQL query topics or keywords: {topics}. You should use values from the example data provided, if questions require querying against specific values of columns.
+All answers MUST incorpate at least one of the following SQL query topics or keywords: {topics}.
+If the answer is a SELECT statement, the question should explicitly tell the user which columns to return. If the answer is a CREATE, INSERT, UPDATE, ALTER, DROP or DELETE statement, this should be the only statement given in the answer.
+You should use values from the example data provided, if questions require querying against specific values of columns.
 Answer queries should end in a semi-colon, and be written in one line with no breaks.
 
-Ensure that answer queries are correct, and all involve at least one of the topics given.
+Ensure that all answer queries are correct given the schema, and all involve at least one of the topics given.
 Queries should be written in {rdbms} syntax.
 
 {format_instruction}

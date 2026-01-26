@@ -43,14 +43,62 @@ class UserDatabase:
     return self.schema # (text of SQL schema statements (create table, etc))
 
   def execute_query(self, query):
+    if query.split()[0].upper() in ("SELECT", "WITH"): # WITH for CTEs and stuff
+      try:
+        with self.engine.connect() as conn:
+          result = conn.execute(text(query)).fetchall()
+        return result
+      except Exception as e:
+        print("failed to execute query")
+        print(str(e))
+        raise ValueError
+    else:
+      result = self._execute_not_select(query)
+      return result
+    
+  def _execute_not_select(self, query):
+    operation = query.split()[0].upper()
+    db_object = self._extract_db_object_from_query(query)
+
+    # debugging
+    print(query)
+    print(operation)
+    print(db_object)
+    #
+
     try:
       with self.engine.connect() as conn:
-        result = conn.execute(text(query)).fetchall()
+        with conn.begin() as transaction: # for sqlite this matters less as the file is a copy of the user's database, however for databases with connections the app shouldn't edit any of their data
+          
+          match operation:
+            case "CREATE" | "ALTER" | "DROP":
+              conn.execute(text(query))
+              result = query # update this to get the schema instead
+            
+            case "INSERT" | "UPDATE" | "DELETE":
+              conn.execute(text(query))
+              result = conn.execute(text(f"SELECT * FROM {db_object};")).fetchall() # could to self.execute_query but this might break cause it's a conn within a conn
+            
+            case _:
+              print("query could not be executed")
+              result = None
+          transaction.rollback() # undo any changes made, ensure they are NOT committed :O
+      
+      # debugging
+      print(result)
+      #
+
       return result
-    except Exception as e:
-      print("failed to execute query")
-      print(str(e))
-      raise ValueError
+    except:
+      # catch error
+      pass
+  
+  def _extract_db_object_from_query(self, query):
+    words = query.upper().split()
+    for word in words:
+      if word not in ("CREATE", "INSERT", "UPDATE", "ALTER", "DROP", "DELETE") and word not in ("TABLE", "VIEW") and word not in ("FROM", "INTO"):
+        return word
+    return None
 
 class SQLiteUserDatabase(UserDatabase):
   # overrides various checking functions to have sqlite-specific functionality (eg initially opening db from file not connection str)
@@ -92,10 +140,9 @@ class SQLiteUserDatabase(UserDatabase):
     return tables
   
   def _set_schema(self):
-    schema = self.execute_query("SELECT sql FROM sqlite_schema;")
+    schema = self.execute_query("SELECT sql FROM sqlite_schema WHERE type IN ('table', 'view');")
     return schema
 
-  #@classmethod # function grouped with the class but doesn't need an instance :)
   def sqlite_engine_string(self, db_path):
     return "sqlite:///" + db_path
   
