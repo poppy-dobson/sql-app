@@ -4,15 +4,14 @@ from util import load_app_config
 
 config = load_app_config()
 
-from database import UserDatabase, SQLiteUserDatabase
 from model import SQLQuizLLM
 
-model = SQLQuizLLM(config, st.session_state.database)
+model = SQLQuizLLM(config, st.session_state.llm_api_key, st.session_state.database)
 st.session_state.model = model
 
 class QuizElement:
-  def __init__(self, key:str, question_and_answer):
-    self.key = key
+  def __init__(self, key:int, question_and_answer):
+    self.key = str(key)
     self.question = question_and_answer.quiz_question
     self.model_answer = question_and_answer.correct_sql_answer
     self.answerable = True
@@ -42,6 +41,7 @@ class QuizElement:
 
   def lock(self):
     self.answerable = False
+    self.key
 
   def set_correct(self, is_correct):
     self.correct = is_correct
@@ -70,7 +70,7 @@ def quiz_submitted():
     st.dataframe(data=user_answer_result)
 
     st.write("The correct result:")
-    st.write(element.model_answer)
+    st.markdown("`" + element.model_answer + "`")
     st.dataframe(model_answer_result)
 
     # mark each question as right/wrong
@@ -143,19 +143,21 @@ def generate_quiz_questions():
         quiz = st.session_state.model.generate_quiz(st.session_state.topics)
         st.session_state.quiz = quiz
 
-        print("quiz made")
-        print(st.session_state.quiz)
-
-        for i, question_and_answer in enumerate(st.session_state.quiz):
-          st.session_state.quiz_question_form_elements.append(QuizElement(str(i+1), question_and_answer))
-
         try:
           assert len(quiz) == config['quiz']['num_questions']
         except:
           print("quiz is not the right length")
+          raise ValueError
+
+        for i, question_and_answer in enumerate(st.session_state.quiz):
+          st.session_state.quiz_question_form_elements.append(QuizElement((i+1), question_and_answer))
+
+        return True # a valid quiz was created
+      
       except:
         # temporary lazy error handling
-        print("quiz failed to generate")
+        print("valid quiz failed to generate")
+        return False
 
 
 def main():
@@ -167,9 +169,12 @@ def main():
     table_formatted = table[0] + ';'
     st.code(table_formatted, wrap_lines=True)
 
-  if (not st.session_state.quiz) and (not st.session_state.submitted):
-    generate_quiz_questions()
 
+  if (not st.session_state.quiz) and (not st.session_state.submitted):
+    valid_quiz_generated = generate_quiz_questions()
+    if not valid_quiz_generated: st.write("the LLM failed to generate a valid quiz. sorry! your best bet is going back to the home page and trying again :(")
+
+  
   if not st.session_state.submitted:
     display_quiz()
   
@@ -179,6 +184,11 @@ def main():
     st.toast("u submitted the quiz!")
     #st.session_state.submitted = True
     display_quiz() # should have element.answerable = False
+
+    # debugging
+    print(st.session_state.items())
+    #
+
     quiz_submitted()
   
 main()

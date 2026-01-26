@@ -7,18 +7,21 @@ st.session_state.db_path = "temp/user_db.db"
 st.session_state.topics = []
 st.session_state.num_questions = 5 # in future: this should read from a config file to be manually set
 
-# used in quiz.py
+st.session_state.llm_api_key = None
+
+# used in quiz.py, initialised here so they don't reset when the quiz page re-runs
 st.session_state.quiz_question_form_elements = []
 st.session_state.user_answers = []
 st.session_state.quiz = None
 st.session_state.submitted = False
 
-from database import UserDatabase, SQLiteUserDatabase
+from database import SQLiteUserDatabase # at the moment, only SQLite supported :P
 from util import remove_file_if_exists
+from model import verify_api_key
 
 remove_file_if_exists(st.session_state.db_path)
 
-st.title("SQL practice app :0")
+st.header("SQL practice app :0")
 
 st.markdown("""
 Welcome :)
@@ -32,7 +35,7 @@ Pretty cool huh!
 
 &#8592; Upload and select topics in the sidebar on the left :)
             
-PLEASE don't upload any databases with personal or sensitive data, or data that you shouldn't have access too. Don't get me in trouble :(
+*PLEASE* don't upload any databases with personal or sensitive data, or data that you shouldn't have access too. Don't get me in trouble :(
 """)
 
 topics = ["CREATE TABLE", "CREATE VIEW", "INSERT INTO", "DELETE FROM ... WHERE", "UPDATE ... SET", "ALTER", "DROP",
@@ -41,24 +44,33 @@ topics = ["CREATE TABLE", "CREATE VIEW", "INSERT INTO", "DELETE FROM ... WHERE",
           "Subqueries, IN / NOT IN", "EXISTS / NOT EXISTS", "Nested NOT EXISTS"]
 
 
-def _check_topic_selection(topics):
-  if len(topics) >= 3:
+def _check_topic_selection():
+  if len(st.session_state.topics) >= 3:
     return True
   return False
 
 
-def quiz_can_be_made(topics):
-  print("quiz cbm run")
-  if _check_topic_selection(topics) and st.session_state.database.assert_valid_db_file():
-    return True
-  elif not _check_topic_selection(topics):
-    st.toast("You must select at least 3 topics!")
-  else:
-    st.toast("You must upload a valid database file, try again!")
-  
-  return False
+def quiz_can_be_made():
+  try:
+    if _check_topic_selection() and st.session_state.database.assert_valid_db_file() and verify_api_key(st.session_state.llm_api_key):
+      return True
+    elif not verify_api_key(st.session_state.llm_api_key):
+      st.toast("invalid API key entered, try again!")
+    elif not _check_topic_selection():
+      st.toast("you must select at least 3 topics!")
+    else:
+      st.toast("You must upload a valid database file, try again!")
+    
+    return False
+  except:
+    return False
 
 with st.sidebar:
+
+  api_key = st.text_input("Enter your HF Inference API key:", type='password') # can change in the future to be for different providers, eg could be an openai api key
+  if api_key:
+    st.session_state.llm_api_key = api_key
+
   uploaded_db_file = st.file_uploader("Upload an sqlite3 .db file:", type=".db", key="db_upload")
   if uploaded_db_file and not st.session_state.database:
     try:
@@ -76,7 +88,7 @@ with st.sidebar:
                              args=[uploaded_db_file, topic_selection])
   
   if button_clicked:
-    if quiz_can_be_made(st.session_state.topics):
+    if quiz_can_be_made():
       st.switch_page("pages/quiz.py")
     else:
-      st.toast("INVALID")
+      st.toast("error! ensure you have entered your API key, uploaded your database, and selected 3+ topics :P")

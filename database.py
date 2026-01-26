@@ -1,8 +1,11 @@
-import sqlalchemy as sqla
-import io
 from sqlalchemy import create_engine, text
 # import sqlite3
 
+def valid_sql_query(query):
+  first_word = query.split()[0].upper()
+  if (first_word in ['CREATE', 'INSERT', 'UPDATE', 'ALTER', 'DROP', 'DELETE', 'SELECT', 'WITH']) and query[-1] == ';':
+    return True
+  return False
 
 class UserDatabase:
   def __init__(self, engine_string:str):
@@ -60,12 +63,6 @@ class UserDatabase:
     operation = query.split()[0].upper()
     db_object = self._extract_db_object_from_query(query)
 
-    # debugging
-    print(query)
-    print(operation)
-    print(db_object)
-    #
-
     try:
       with self.engine.connect() as conn:
         with conn.begin() as transaction: # for sqlite this matters less as the file is a copy of the user's database, however for databases with connections the app shouldn't edit any of their data
@@ -73,7 +70,7 @@ class UserDatabase:
           match operation:
             case "CREATE" | "ALTER" | "DROP":
               conn.execute(text(query))
-              result = query # update this to get the schema instead
+              result = [(query,)] # update this to get the schema instead
             
             case "INSERT" | "UPDATE" | "DELETE":
               conn.execute(text(query))

@@ -5,4 +5,4 @@ repo_id="Qwen/Qwen2.5-Coder-32B-Instruct"
 provider="nscale"
 
 [quiz]
-num_questions=3 # in the config rather than changeable within the app just to keep an eye on credit usage
+num_questions=2 # in the config rather than changeable within the app just to keep an eye on credit usage
