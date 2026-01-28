@@ -2,11 +2,11 @@
 import streamlit as st
 from util import load_app_config
 
-config = load_app_config()
+st.session_state.config = load_app_config()
 
 from model import SQLQuizLLM
 
-model = SQLQuizLLM(config, st.session_state.llm_api_key, st.session_state.database)
+model = SQLQuizLLM(st.session_state.config, st.session_state.llm_api_key, st.session_state.database)
 st.session_state.model = model
 
 class QuizElement:
@@ -27,21 +27,20 @@ class QuizElement:
       try: st.markdown("`" + self.user_answer + "`")
       except: pass # lazy error handling - will fix
 
-    # for debugging
-    # st.write(self.model_answer)
-    #
-
     st.divider()
 
   def open_to_response(self):
     self.user_answer = st.text_area("Type your answer query...", key=self.key)
+
+  def set_user_answer(self, input):
+    self.user_answer = input
 
   def get_user_answer(self):
     return self.user_answer
 
   def lock(self):
     self.answerable = False
-    self.key
+    #self.key
 
   def set_correct(self, is_correct):
     self.correct = is_correct
@@ -50,11 +49,14 @@ class QuizElement:
 def execute_answer_query(query):
   try:
     result = st.session_state.database.execute_query(query)
-    return result
+    return result, True
   except:
-    print("query failed to execute") # i'm debugging
-    #raise RuntimeError
-    return []
+    print("query failed to execute") # i'm debugging ssh
+    return [], False # empty answer
+
+def display_query_and_result(query, result_data):
+  st.markdown("`" + query + "`")
+  st.dataframe(data=result_data)
 
 def quiz_submitted():
   score = 0
@@ -63,18 +65,21 @@ def quiz_submitted():
   for i, element in enumerate(st.session_state.quiz_question_form_elements):
     st.write(f"Question {i+1}:")
 
-    model_answer_result = execute_answer_query(element.model_answer)
-    user_answer_result = execute_answer_query(element.user_answer)
+    model_answer_result, valid_model_answer = execute_answer_query(element.model_answer)
+    user_answer_result, valid_user_answer = execute_answer_query(element.user_answer)
 
     st.write("The result of your query:")
-    st.dataframe(data=user_answer_result)
+    display_query_and_result(element.user_answer, user_answer_result)
+    if not valid_user_answer:
+      st.write("you may not have entered a valid, executable query")
 
     st.write("The correct result:")
-    st.markdown("`" + element.model_answer + "`")
-    st.dataframe(model_answer_result)
+    display_query_and_result(element.model_answer, model_answer_result)
+    if not valid_model_answer:
+      st.write("this result might not be valid or what was requested from the llm. these models can be a bit stupid")
 
     # mark each question as right/wrong
-    correct = (element.model_answer.upper() == element.user_answer.upper()) or (model_answer_result == user_answer_result)
+    correct = valid_user_answer and ((element.model_answer.upper() == element.user_answer.upper()) or (model_answer_result == user_answer_result))
 
     print(f"question is {correct}")
 
@@ -88,11 +93,15 @@ def quiz_submitted():
   print(f"incorrect questions: {incorrect_questions}")
 
   if incorrect_questions:
-    feedback = get_feedback_on_incorrect_answers(incorrect_questions).comments
-    st.write(f"You got {score} question(s) right! Some feedback on your incorrect answer(s):")
-    for comment in feedback:
-      st.write(comment)
-      st.divider()
+    try:
+      feedback = get_feedback_on_incorrect_answers(incorrect_questions).comments
+      st.write(f"You got {score} question(s) right! Some feedback on your incorrect answer(s):")
+      for comment in feedback:
+        st.write(comment)
+        st.divider()
+      st.write("Please note that model responses may be incorrect, don't take it's answers as 100% correct!")
+    except:
+      st.write("uh oh! the llm failed to generate valid comments. sorry! hope u can spot ur mistakes anyway by looking at the answers above :P")
   else:
     st.write("You got every question right! Well Done!")
 
@@ -109,22 +118,41 @@ User Answer (incorrect): {element.get_user_answer()}
 
 """
   with st.spinner("getting feedback on incorrect results..."):
-    feedback = st.session_state.model.get_quiz_answer_feedback(prompt_input)
+    try:
+      feedback = st.session_state.model.get_quiz_answer_feedback(prompt_input)
+    except:
+      try:
+        feedback = st.session_state.model.get_quiz_answer_feedback(prompt_input, improvement=True)
+      except:
+        print("valid feedback could not be generated")
+        raise ValueError
   return feedback
 
 def all_answers_have_been_entered():
   for element in st.session_state.quiz_question_form_elements:
+
+    # debugging
+    print("user answer")
+    print(element.user_answer)
+    print("get_user_answer")
+    print(element.get_user_answer())
+    #
+
     if not element.user_answer:
       return False
   return True
 
 def submit_pressed():
+
   if all_answers_have_been_entered():
     for element in st.session_state.quiz_question_form_elements:
       element.lock()
     
     st.session_state.submitted = True
   else:
+    # debugging
+    print("submit was pressed, not all answered")
+    #
     st.toast("you must enter something for every question")
 
 
@@ -136,6 +164,13 @@ def display_quiz():
     #submitted = st.form_submit_button("Submit Answers")
     st.form_submit_button("Submit Answers", on_click=submit_pressed)
 
+def validate_quiz_len(quiz):
+  try:
+    assert len(quiz) == st.session_state.config['quiz']['num_questions']
+  except:
+    print("quiz is not the right length")
+    raise ValueError # is handled outside
+
 def generate_quiz_questions():
   with st.spinner("generating quiz..."):
 
@@ -143,21 +178,26 @@ def generate_quiz_questions():
         quiz = st.session_state.model.generate_quiz(st.session_state.topics)
         st.session_state.quiz = quiz
 
-        try:
-          assert len(quiz) == config['quiz']['num_questions']
-        except:
-          print("quiz is not the right length")
-          raise ValueError
-
-        for i, question_and_answer in enumerate(st.session_state.quiz):
-          st.session_state.quiz_question_form_elements.append(QuizElement((i+1), question_and_answer))
+        validate_quiz_len(quiz)
 
         return True # a valid quiz was created
       
       except:
         # temporary lazy error handling
-        print("valid quiz failed to generate")
-        return False
+        print("valid quiz failed to generate once")
+
+        try:
+          quiz = st.session_state.model.generate_quiz(st.session_state.topics, improvement=True)
+          st.session_state.quiz = quiz
+
+          validate_quiz_len(quiz)
+
+          return True 
+        
+        except:
+          # more shoddy error-handling
+          print("valid quiz failed to generate twice")
+          return False
 
 
 def main():
@@ -172,9 +212,14 @@ def main():
 
   if (not st.session_state.quiz) and (not st.session_state.submitted):
     valid_quiz_generated = generate_quiz_questions()
-    if not valid_quiz_generated: st.write("the LLM failed to generate a valid quiz. sorry! your best bet is going back to the home page and trying again :(")
+    if not valid_quiz_generated:
+      st.write("the LLM failed to generate a valid quiz. sorry! your best bet is going back to the home page and trying again :(")
+    else:
+      for i, question_and_answer in enumerate(st.session_state.quiz):
+        st.session_state.quiz_question_form_elements.append(QuizElement((i+1), question_and_answer))
 
-  
+  # testing nesting this:
+
   if not st.session_state.submitted:
     display_quiz()
   

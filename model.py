@@ -53,6 +53,7 @@ class SQLQuizLLM: # overall handling of the whole process
 
     self.quiz_prompt_template = self.set_prompt_template()
     self.feedback_prompt_template = self.set_feedback_template()
+    self.improvement_msg = self.set_improvement_msg()
     self.num_questions = self.config['quiz']['num_questions']
 
 
@@ -96,7 +97,12 @@ class SQLQuizLLM: # overall handling of the whole process
       return json_text.group(0)
     raise ValueError('no valid JSON found')
   
-  def _get_quiz_questions_and_answers(self, topic_list, improvement = ""):
+  def _get_quiz_questions_and_answers(self, topic_list, improvement = False):
+    if not improvement:
+      improvement = ""
+    else:
+      improvement = self.improvement_msg
+    
     response = self.quiz_chain.invoke({"schema": self.database.get_schema(),
                                        "sample_data": self.database.sample_data,
                                        "topics": str(topic_list),
@@ -105,11 +111,22 @@ class SQLQuizLLM: # overall handling of the whole process
                                        "improvement": improvement})
     return response
   
-  def get_quiz_answer_feedback(self, input_questions_and_answers):
+  def get_quiz_answer_feedback(self, input_questions_and_answers, improvement = False):
+    if not improvement:
+      improvement = ""
+    else:
+      improvement = self.improvement_msg
+
     response = self.feedback_chain.invoke({"schema": self.database.get_schema(),
-                                           "questions_and_answers": input_questions_and_answers})
+                                           "questions_and_answers": input_questions_and_answers,
+                                           "improvement": improvement})
     return response
   
+  def set_improvement_msg(self):
+    return """
+          Your previous attempt did not generate a valid json document within { }. Ensure the response is in this format.
+          """
+
   def set_prompt_template(self):
     text_template = """
 You are setting an SQL quiz, with {num_questions} questions.
@@ -124,7 +141,7 @@ Generate a list of {num_questions} question & answer pairs.
 Each question should ask the user to write a query specific to this database, and the answer is an SQL query that is the correct solution to the question.
 All answer queries MUST involve at least one of the following SQL query topics or keywords in their functionality: {topics}.
 If the answer is a SELECT statement, the question should explicitly tell the user which columns to return.
-Every answer should only require and contain one SQL query.
+Every answer should only contain ONE SQL query.
 You should use values from the example data provided, if questions require querying against specific values of columns.
 Answer queries should end in a semi-colon, and be written in one line with no breaks.
 
@@ -155,11 +172,11 @@ For each of the following question(s) that the user answered incorrectly, respon
 
 
 {format_instruction}
-
+{improvement}
 Return nothing but a valid JSON document described above.
 """
     prompt_template = PromptTemplate(
-    input_variables=["schema", "questions_and_answers"],
+    input_variables=["schema", "questions_and_answers", "improvement"],
     template=text_template,
     partial_variables={'format_instruction': feedback_parser.get_format_instructions()})
     

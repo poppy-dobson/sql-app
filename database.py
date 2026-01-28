@@ -4,7 +4,8 @@ from sqlalchemy import create_engine, text
 def valid_sql_query(query):
   first_word = query.split()[0].upper()
   if (first_word in ['CREATE', 'INSERT', 'UPDATE', 'ALTER', 'DROP', 'DELETE', 'SELECT', 'WITH']) and query[-1] == ';':
-    return True
+    if query.count(';') == 1:
+      return True
   return False
 
 class UserDatabase:
@@ -46,18 +47,25 @@ class UserDatabase:
     return self.schema # (text of SQL schema statements (create table, etc))
 
   def execute_query(self, query):
-    if query.split()[0].upper() in ("SELECT", "WITH"): # WITH for CTEs and stuff
-      try:
-        with self.engine.connect() as conn:
-          result = conn.execute(text(query)).fetchall()
-        return result
-      except Exception as e:
-        print("failed to execute query")
-        print(str(e))
-        raise ValueError
+    if valid_sql_query(query):
+      if query.split()[0].upper() in ("SELECT", "WITH"): # WITH for CTEs and stuff
+        try:
+          with self.engine.connect() as conn:
+            result = conn.execute(text(query)).fetchall()
+          return result
+        except Exception as e:
+          print("failed to execute query")
+          print(str(e))
+          raise ValueError
+      else:
+        try:
+          result = self._execute_not_select(query)
+          return result
+        except:
+          raise ValueError
     else:
-      result = self._execute_not_select(query)
-      return result
+      print("the query passed to execute_query was not a valid SQL answer")
+      raise ValueError
     
   def _execute_not_select(self, query):
     operation = query.split()[0].upper()
@@ -87,8 +95,7 @@ class UserDatabase:
 
       return result
     except:
-      # catch error
-      pass
+      raise ValueError
   
   def _extract_db_object_from_query(self, query):
     words = query.upper().split()

@@ -1,7 +1,8 @@
 [model]
 endpoint="hf"
 # IN FUTURE UPDATES: can be "hf" (huggingface) | "openai" | etc etc
-repo_id="Qwen/Qwen2.5-Coder-32B-Instruct"
+repo_id="Qwen/Qwen2.5-Coder-32B-Instruct" # NORMAL VALUE
+#repo_id="Qwen/Qwen3-4B-Instruct-2507" # TEST VALUE
 provider="nscale"
 
 [quiz]
