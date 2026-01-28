@@ -12,6 +12,7 @@ st.session_state.model = model
 class QuizElement:
   def __init__(self, key:int, question_and_answer):
     self.key = str(key)
+    self.box_key = "box_" + self.key
     self.question = question_and_answer.quiz_question
     self.model_answer = question_and_answer.correct_sql_answer
     self.answerable = True
@@ -30,7 +31,7 @@ class QuizElement:
     st.divider()
 
   def open_to_response(self):
-    self.user_answer = st.text_area("Type your answer query...", key=self.key)
+    st.session_state[self.key] = st.text_area("Type your answer query...", key=self.box_key)
 
   def set_user_answer(self, input):
     self.user_answer = input
@@ -40,7 +41,7 @@ class QuizElement:
 
   def lock(self):
     self.answerable = False
-    #self.key
+    self.user_answer = st.session_state[self.box_key]
 
   def set_correct(self, is_correct):
     self.correct = is_correct
@@ -129,31 +130,25 @@ User Answer (incorrect): {element.get_user_answer()}
   return feedback
 
 def all_answers_have_been_entered():
+  print("all_answers_been_entered_run")
   for element in st.session_state.quiz_question_form_elements:
 
     # debugging
-    print("user answer")
-    print(element.user_answer)
-    print("get_user_answer")
-    print(element.get_user_answer())
+    # print("user answer")
+    # print(element.user_answer)
+    # print("get_user_answer")
+    # print(element.get_user_answer())
     #
+    print(f"text box key = {st.session_state[element.box_key]}")
 
-    if not element.user_answer:
+    if not st.session_state[element.box_key]:
+      print("returned False")
       return False
+  print("returned True")
   return True
 
 def submit_pressed():
-
-  if all_answers_have_been_entered():
-    for element in st.session_state.quiz_question_form_elements:
-      element.lock()
-    
-    st.session_state.submitted = True
-  else:
-    # debugging
-    print("submit was pressed, not all answered")
-    #
-    st.toast("you must enter something for every question")
+  st.session_state.submit_button_clicked = True
 
 
 def display_quiz():
@@ -161,7 +156,6 @@ def display_quiz():
     for element in st.session_state.quiz_question_form_elements:
       element.show()
 
-    #submitted = st.form_submit_button("Submit Answers")
     st.form_submit_button("Submit Answers", on_click=submit_pressed)
 
 def validate_quiz_len(quiz):
@@ -201,6 +195,8 @@ def generate_quiz_questions():
 
 
 def main():
+  print("main run")
+
   st.title("the quiz!")
 
   st.write("The database schema:")
@@ -209,19 +205,43 @@ def main():
     table_formatted = table[0] + ';'
     st.code(table_formatted, wrap_lines=True)
 
+  print(f"quiz={st.session_state.quiz}")
+  print(f"submitted={st.session_state.submitted}")
 
   if (not st.session_state.quiz) and (not st.session_state.submitted):
     valid_quiz_generated = generate_quiz_questions()
+
+    print("quiz generated")
+
     if not valid_quiz_generated:
       st.write("the LLM failed to generate a valid quiz. sorry! your best bet is going back to the home page and trying again :(")
     else:
       for i, question_and_answer in enumerate(st.session_state.quiz):
         st.session_state.quiz_question_form_elements.append(QuizElement((i+1), question_and_answer))
 
-  # testing nesting this:
+        print("added quiz questions to list")
+        print(f"quiz_question_form_elements={st.session_state.quiz_question_form_elements}")
+
+
+  print(f"submitted={st.session_state.submitted}")
+
+  if 'submit_button_clicked' in st.session_state:
+    print(f"submit_button_clicked={st.session_state.submit_button_clicked}")
+    if st.session_state.submit_button_clicked:
+      if all_answers_have_been_entered():
+        for element in st.session_state.quiz_question_form_elements:
+          element.lock()
+    
+        st.session_state.submitted = True
+      else:
+        st.toast("you must enter something for every question")
+
+
 
   if not st.session_state.submitted:
     display_quiz()
+    
+    print("quiz displayed")
   
   if st.session_state.submitted:
     print("button pressed, quiz submitted")

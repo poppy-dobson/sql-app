@@ -4,3 +4,4 @@ venv/
 __pycache__/
 temp/
 .streamlit/secrets.toml
+.pytest_cache/

@@ -48,15 +48,9 @@ class UserDatabase:
 
   def execute_query(self, query):
     if valid_sql_query(query):
-      if query.split()[0].upper() in ("SELECT", "WITH"): # WITH for CTEs and stuff
-        try:
-          with self.engine.connect() as conn:
-            result = conn.execute(text(query)).fetchall()
-          return result
-        except Exception as e:
-          print("failed to execute query")
-          print(str(e))
-          raise ValueError
+      query_first_command = query.split()[0].upper()
+      if query_first_command in ("SELECT", "WITH"): # WITH for CTEs and stuff
+        result = self.execute_select_query(query)
       else:
         try:
           result = self._execute_not_select(query)
@@ -67,35 +61,62 @@ class UserDatabase:
       print("the query passed to execute_query was not a valid SQL answer")
       raise ValueError
     
-  def _execute_not_select(self, query):
-    operation = query.split()[0].upper()
+  def execute_select_query(self, query):
+    try:
+      with self.engine.connect() as conn:
+        result = conn.execute(text(query)).fetchall()
+      return result
+    except Exception as e:
+      print("failed to execute query")
+      print(str(e))
+      raise ValueError
+    
+  def execute_insert_update_delete_query(self, query):
     db_object = self._extract_db_object_from_query(query)
-
     try:
       with self.engine.connect() as conn:
         with conn.begin() as transaction: # for sqlite this matters less as the file is a copy of the user's database, however for databases with connections the app shouldn't edit any of their data
-          
-          match operation:
-            case "CREATE" | "ALTER" | "DROP":
-              conn.execute(text(query))
-              result = [(query,)] # update this to get the schema instead
-            
-            case "INSERT" | "UPDATE" | "DELETE":
-              conn.execute(text(query))
-              result = conn.execute(text(f"SELECT * FROM {db_object};")).fetchall() # could to self.execute_query but this might break cause it's a conn within a conn
-            
-            case _:
-              print("query could not be executed")
-              result = None
+          conn.execute(text(query))
+          result = conn.execute(text(f"SELECT * FROM {db_object};")).fetchall() # could to self.execute_query but this might break cause it's a conn within a conn
           transaction.rollback() # undo any changes made, ensure they are NOT committed :O
-      
-      # debugging
-      print(result)
-      #
-
-      return result
+        return result
     except:
       raise ValueError
+
+  def execute_ddl_query(self, query):
+    ...
+    schema = self._set_schema()
+    return schema
+    
+  # def _execute_not_select(self, query):
+  #   operation = query.split()[0].upper()
+  #   db_object = self._extract_db_object_from_query(query)
+
+  #   try:
+  #     with self.engine.connect() as conn:
+  #       with conn.begin() as transaction: # for sqlite this matters less as the file is a copy of the user's database, however for databases with connections the app shouldn't edit any of their data
+          
+  #         match operation:
+  #           case "CREATE" | "ALTER" | "DROP":
+  #             conn.execute(text(query))
+  #             result = [(query,)] # update this to get the schema instead
+            
+  #           case "INSERT" | "UPDATE" | "DELETE":
+  #             conn.execute(text(query))
+  #             result = conn.execute(text(f"SELECT * FROM {db_object};")).fetchall() # could to self.execute_query but this might break cause it's a conn within a conn
+            
+  #           case _:
+  #             print("query could not be executed")
+  #             result = None
+  #         transaction.rollback() # undo any changes made, ensure they are NOT committed :O
+      
+  #     # debugging
+  #     print(result)
+  #     #
+
+  #     return result
+  #   except:
+  #     raise ValueError
   
   def _extract_db_object_from_query(self, query):
     words = query.upper().split()
@@ -155,5 +176,5 @@ if __name__ == "__main__":
   # test here
   eng = create_engine("sqlite:///" + "temp/user_db.db")
   with eng.connect() as conn:
-    result = conn.execute(text("SELECT tbl_name FROM sqlite_schema WHERE type ='table';")).fetchall()
+    result = conn.execute(text("""SELECT tbl_name FROM sqlite_schema WHERE type ='table';""")).fetchall()
   print(result)
