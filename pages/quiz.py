@@ -177,21 +177,9 @@ def generate_quiz_questions():
         return True # a valid quiz was created
       
       except:
-        # temporary lazy error handling
-        print("valid quiz failed to generate once")
-
-        try:
-          quiz = st.session_state.model.generate_quiz(st.session_state.topics, improvement=True)
-          st.session_state.quiz = quiz
-
-          validate_quiz_len(quiz)
-
-          return True 
-        
-        except:
-          # more shoddy error-handling
-          print("valid quiz failed to generate twice")
-          return False
+        # more shoddy error-handling
+        print("valid quiz failed to generate twice")
+        return False
 
 
 def main():

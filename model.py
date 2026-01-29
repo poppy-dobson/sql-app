@@ -76,6 +76,8 @@ class SQLQuizLLM: # overall handling of the whole process
     return model
 
   def generate_quiz(self, topic_list):
+    print("generate quiz run")
+
     valid_quiz = False
     while not valid_quiz:
       try:
@@ -98,17 +100,24 @@ class SQLQuizLLM: # overall handling of the whole process
     raise ValueError('no valid JSON found')
   
   def _get_quiz_questions_and_answers(self, topic_list, improvement = False):
+    print("_get_valid_q_and_a run")
     if not improvement:
       improvement = ""
     else:
+      print("improvement msg used")
       improvement = self.improvement_msg
     
-    response = self.quiz_chain.invoke({"schema": self.database.get_schema(),
-                                       "sample_data": self.database.sample_data,
-                                       "topics": str(topic_list),
-                                       "num_questions": str(self.num_questions),
-                                       "rdbms": self.database.rdbms,
-                                       "improvement": improvement})
+    try:
+      response = self.quiz_chain.invoke({"schema": self.database.get_schema(),
+                                        "sample_data": self.database.sample_data,
+                                        "topics": str(topic_list),
+                                        "num_questions": str(self.num_questions),
+                                        "rdbms": self.database.rdbms,
+                                        "improvement": improvement})
+      print("chain was invoked sucessfully")
+    except Exception as e:
+      print(e)
+      raise RuntimeError
     return response
   
   def get_quiz_answer_feedback(self, input_questions_and_answers, improvement = False):
