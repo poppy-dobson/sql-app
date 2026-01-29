@@ -22,7 +22,8 @@ class TestAPIKeys:
   def test_api_key_verification(valid_hf_api_key):
     load_dotenv()
     assert verify_api_key("blah") == False
-    assert verify_api_key(valid_hf_api_key) == True
+    #assert verify_api_key(valid_hf_api_key) == True # fixture doesn't work for some reason
+    assert verify_api_key(os.environ.get("HUGGINGFACEHUB_API_TOKEN")) == True
 
 class TestModel:
   pass
