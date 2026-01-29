@@ -166,7 +166,8 @@ class SQLiteUserDatabase(UserDatabase):
           result = conn.execute(text(f"SELECT * FROM {db_object};")).fetchall() 
           conn.exec_driver_sql("ROLLBACK")
         return result
-    except:
+    except Exception as e:
+      print(e)
       raise ValueError
 
   def _execute_ddl_query(self, query):
@@ -206,30 +207,15 @@ if __name__ == "__main__":
     print("transaction begun?")
 
   with engine.connect() as conn:
-    result = conn.execute(text("SELECT * FROM QDEL;"))
+    with conn.begin() as tr:
+      conn.execute(text("INSERT INTO QDEPT VALUES ('Finance', 4, '020-7000-5001', 5001);"))
+      result = conn.execute(text("SELECT * FROM QDEPT;")).fetchall()
+      #try:
+      conn.exec_driver_sql("ROLLBACK;")
+      #except:
+      #  print("errored")
   for smth in result:
     print(smth)
 
-  with engine.connect() as conn:
-    with conn.begin() as transaction:
-      conn.execute(text("DROP TABLE QDEL;"))
-      conn.exec_driver_sql("ROLLBACK")
-
-  with engine.connect() as conn:
-    result = conn.execute(text("SELECT * FROM QDEL;"))
-  for smth in result:
-    print(smth)
-
-  try:
-    with engine.connect() as conn:
-      with conn.begin() as transaction:
-        conn.execute(text("DROP TABLE QDEL;"))
-
-    with engine.connect() as conn:
-      result = conn.execute(text("SELECT * FROM QDEL;"))
-    for smth in result:
-      print(smth)
-  except Exception as e:
-    print(e)
 
   

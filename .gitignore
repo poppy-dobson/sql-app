@@ -5,3 +5,4 @@ __pycache__/
 temp/
 .streamlit/secrets.toml
 .pytest_cache/
+tests/
