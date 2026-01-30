@@ -25,8 +25,7 @@ class QuizElement:
       self.open_to_response()
     else:
       st.write("Your answer:")
-      try: st.markdown("`" + self.user_answer + "`")
-      except: pass # lazy error handling - will fix
+      st.markdown("`" + self.user_answer + "`")
 
     st.divider()
 
@@ -52,7 +51,6 @@ def execute_answer_query(query):
     result = st.session_state.database.execute_query(query)
     return result, True
   except:
-    print("query failed to execute") # i'm debugging ssh
     return [], False # empty answer
 
 def display_query_and_result(query, result_data):
@@ -64,7 +62,7 @@ def quiz_submitted():
   incorrect_questions = []
 
   for i, element in enumerate(st.session_state.quiz_question_form_elements):
-    st.write(f"Question {i+1}:")
+    st.write(f"Question {i+1}: {element.question}")
 
     model_answer_result, valid_model_answer = execute_answer_query(element.model_answer)
     user_answer_result, valid_user_answer = execute_answer_query(element.user_answer)
@@ -72,17 +70,16 @@ def quiz_submitted():
     st.write("The result of your query:")
     display_query_and_result(element.user_answer, user_answer_result)
     if not valid_user_answer:
-      st.write("you may not have entered a valid, executable query")
+      st.markdown("*warning: you may not have entered a valid, executable query*")
 
     st.write("The correct result:")
     display_query_and_result(element.model_answer, model_answer_result)
     if not valid_model_answer:
-      st.write("this result might not be valid or what was requested from the llm. these models can be a bit stupid")
+      st.markdown("*warning: this result might not be valid or what was requested from the llm. these models can be a bit stupid*")
 
     # mark each question as right/wrong
-    correct = valid_user_answer and ((element.model_answer.upper() == element.user_answer.upper()) or (model_answer_result == user_answer_result))
+    correct = (element.model_answer.upper() == element.user_answer.upper()) or (valid_user_answer and (model_answer_result == user_answer_result))
 
-    print(f"question is {correct}")
 
     element.set_correct(correct)
 
@@ -91,7 +88,6 @@ def quiz_submitted():
     else:
       incorrect_questions.append(element)
 
-  print(f"incorrect questions: {incorrect_questions}")
 
   if incorrect_questions:
     try:
@@ -112,9 +108,7 @@ def get_feedback_on_incorrect_answers(incorrect_questions):
   for element in incorrect_questions:
     prompt_input = prompt_input + f"""
 Question: {element.question}
-
 Model Answer (correct): {element.model_answer}
-
 User Answer (incorrect): {element.get_user_answer()}
 
 """
@@ -125,26 +119,14 @@ User Answer (incorrect): {element.get_user_answer()}
       try:
         feedback = st.session_state.model.get_quiz_answer_feedback(prompt_input, improvement=True)
       except:
-        print("valid feedback could not be generated")
         raise ValueError
   return feedback
 
 def all_answers_have_been_entered():
-  print("all_answers_been_entered_run")
   for element in st.session_state.quiz_question_form_elements:
 
-    # debugging
-    # print("user answer")
-    # print(element.user_answer)
-    # print("get_user_answer")
-    # print(element.get_user_answer())
-    #
-    print(f"text box key = {st.session_state[element.box_key]}")
-
     if not st.session_state[element.box_key]:
-      print("returned False")
       return False
-  print("returned True")
   return True
 
 def submit_pressed():
@@ -162,29 +144,19 @@ def validate_quiz_len(quiz):
   try:
     assert len(quiz) == st.session_state.config['quiz']['num_questions']
   except:
-    print("quiz is not the right length")
     raise ValueError # is handled outside
 
 def generate_quiz_questions():
   with st.spinner("generating quiz..."):
-
-      try:
-        quiz = st.session_state.model.generate_quiz(st.session_state.topics)
-        st.session_state.quiz = quiz
-
-        validate_quiz_len(quiz)
-
-        return True # a valid quiz was created
-      
-      except:
-        # more shoddy error-handling
-        print("valid quiz failed to generate twice")
-        return False
-
+    try:
+      quiz = st.session_state.model.generate_quiz(st.session_state.topics)
+      st.session_state.quiz = quiz
+      validate_quiz_len(quiz) # errors if quiz is not the right length
+      return True # a valid quiz was created
+    except: # this is poor error-handling, I will ammend this hopefully in future updates
+      return False # a vlid quiz could not be generated
 
 def main():
-  print("main run")
-
   st.title("the quiz!")
 
   st.write("The database schema:")
@@ -193,13 +165,9 @@ def main():
     table_formatted = table[0] + ';'
     st.code(table_formatted, wrap_lines=True)
 
-  print(f"quiz={st.session_state.quiz}")
-  print(f"submitted={st.session_state.submitted}")
-
   if (not st.session_state.quiz) and (not st.session_state.submitted):
     valid_quiz_generated = generate_quiz_questions()
 
-    print("quiz generated")
 
     if not valid_quiz_generated:
       st.write("the LLM failed to generate a valid quiz. sorry! your best bet is going back to the home page and trying again :(")
@@ -207,14 +175,8 @@ def main():
       for i, question_and_answer in enumerate(st.session_state.quiz):
         st.session_state.quiz_question_form_elements.append(QuizElement((i+1), question_and_answer))
 
-        print("added quiz questions to list")
-        print(f"quiz_question_form_elements={st.session_state.quiz_question_form_elements}")
-
-
-  print(f"submitted={st.session_state.submitted}")
 
   if 'submit_button_clicked' in st.session_state:
-    print(f"submit_button_clicked={st.session_state.submit_button_clicked}")
     if st.session_state.submit_button_clicked:
       if all_answers_have_been_entered():
         for element in st.session_state.quiz_question_form_elements:
@@ -224,24 +186,12 @@ def main():
       else:
         st.toast("you must enter something for every question")
 
-
-
   if not st.session_state.submitted:
     display_quiz()
-    
-    print("quiz displayed")
-  
+      
   if st.session_state.submitted:
-    print("button pressed, quiz submitted")
-
     st.toast("u submitted the quiz!")
-    #st.session_state.submitted = True
     display_quiz() # should have element.answerable = False
-
-    # debugging
-    print(st.session_state.items())
-    #
-
     quiz_submitted()
   
 main()

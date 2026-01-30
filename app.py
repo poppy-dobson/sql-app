@@ -29,17 +29,20 @@ Welcome :)
 This is a project I decided to make to ~~procrastinate revising for~~ help with revising for the databases exam!
             
 You can upload your own sqlite database file (.db), and an LLM will generate an SQL test, based on the topics you would like to revise,
-and the specific context of your database's content (for more realistic, real-world queries!).
-
-Pretty cool huh!
+and the specific context of your database's content (for more realistic, real-world queries!). Pretty cool huh!
+            
+Things to note, that might impact the functioning of the app:
+- if choosing to practice ALTER / DELETE / UPDATE, this may sometimes cause errors due to integrity constraints, so you could ensure your database is set up that these constraints are not an issue
+- SQLite does not support various random functionality like: dropping columns (with ALTER), RIGHT/OUTER joins, etc
+- some LLMs are much better than others at generating quiz questions and feedback. be mindful of this if you are changing the model and provider in `app_config.toml`
 
 &#8592; Upload and select topics in the sidebar on the left :)
             
 *PLEASE* don't upload any databases with personal or sensitive data, or data that you shouldn't have access too. Don't get me in trouble :(
 """)
 
-topics = ["CREATE TABLE", "CREATE VIEW", "INSERT INTO", "DELETE FROM ... WHERE", "UPDATE ... SET", "ALTER", "DROP",
-          "Simple SELECT Statements", "WHERE Clause", "Simple Aggregation (MIN, MAX, AVG, COUNT, SUM)",
+topics = ["CREATE TABLE", "CREATE VIEW", "INSERT INTO", "DELETE FROM ... WHERE", "UPDATE ... SET", "ALTER TABLE (RENAME or ADD)", "DROP",
+          "Simple SELECT Statements", "WHERE", "Simple Aggregation (MIN, MAX, AVG, COUNT, SUM)",
           "GROUP BY", "HAVING", "ORDER BY", "LIMIT", "Joins (INNER, LEFT, RIGHT, OUTER)", "Self-Joins", "Text-matching (LIKE)", "BETWEEN",
           "Subqueries, IN / NOT IN", "EXISTS / NOT EXISTS", "Nested NOT EXISTS"]
 
@@ -75,9 +78,8 @@ with st.sidebar:
   if uploaded_db_file and not st.session_state.database:
     try:
       st.session_state.database = SQLiteUserDatabase(uploaded_db_file)
-    except Exception as e:
-      st.toast("invalid database uploaded")
-      st.toast(str(e))
+    except:
+      st.toast("invalid database uploaded, try another file")
 
   # topic selection
   topic_selection = st.multiselect("Select SQL topics to be tested on:", options=topics)

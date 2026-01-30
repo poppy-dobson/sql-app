@@ -27,7 +27,7 @@ class ModelQuizQuestionOutput(BaseModel):
   quiz_question: str
   correct_sql_answer: str
 
-  @field_validator('correct_sql_answer', mode = 'after') # THIS NEEDS TO ACTUALLY BE IMPLEMENTED THO
+  @field_validator('correct_sql_answer', mode = 'after')
   @classmethod
   def validate_sql_answer(cls, query: str):
     if not valid_sql_query(query):
@@ -64,7 +64,7 @@ class SQLQuizLLM: # overall handling of the whole process
     if self.config['model']['endpoint'] == 'hf':
       hf_endpoint = HuggingFaceEndpoint(
       repo_id=self.config['model']['repo_id'], provider=self.config['model']['provider'],
-      temperature=0.8,
+      temperature=0.95,
       max_new_tokens=768,
       huggingfacehub_api_token=self.api_key)
 
@@ -76,8 +76,6 @@ class SQLQuizLLM: # overall handling of the whole process
     return model
 
   def generate_quiz(self, topic_list):
-    print("generate quiz run")
-
     valid_quiz = False
     while not valid_quiz:
       try:
@@ -86,11 +84,10 @@ class SQLQuizLLM: # overall handling of the whole process
       except:
         try:
           response = self._get_quiz_questions_and_answers(topic_list, improvement="""
-                                                          Your previous attempt failed to generate a valid output. Adhere strictly to the query and formatting rules given.
+                                                          Your previous attempt failed to generate a valid output. Adhere strictly to the query and formatting rules given, and ensure the SQL queries you give are valid.
                                                           """)
           return response.questions_and_answers
         except:
-          print("model failed to generate valid questions and answers")
           raise RuntimeError
 
   def _parse_llm_response(self, response):
@@ -100,11 +97,9 @@ class SQLQuizLLM: # overall handling of the whole process
     raise ValueError('no valid JSON found')
   
   def _get_quiz_questions_and_answers(self, topic_list, improvement = False):
-    print("_get_valid_q_and_a run")
     if not improvement:
       improvement = ""
     else:
-      print("improvement msg used")
       improvement = self.improvement_msg
     
     try:
@@ -114,9 +109,7 @@ class SQLQuizLLM: # overall handling of the whole process
                                         "num_questions": str(self.num_questions),
                                         "rdbms": self.database.rdbms,
                                         "improvement": improvement})
-      print("chain was invoked sucessfully")
-    except Exception as e:
-      print(e)
+    except:
       raise RuntimeError
     return response
   
@@ -125,11 +118,13 @@ class SQLQuizLLM: # overall handling of the whole process
       improvement = ""
     else:
       improvement = self.improvement_msg
-
-    response = self.feedback_chain.invoke({"schema": self.database.get_schema(),
-                                           "questions_and_answers": input_questions_and_answers,
-                                           "improvement": improvement})
-    return response
+    try:
+      response = self.feedback_chain.invoke({"schema": self.database.get_schema(),
+                                            "questions_and_answers": input_questions_and_answers,
+                                            "improvement": improvement})
+      return response
+    except:
+      raise RuntimeError
   
   def set_improvement_msg(self):
     return """
@@ -166,19 +161,15 @@ Return nothing but a valid JSON document described above.
     input_variables=["schema", "topics", "num_questions", "rdbms", "improvement"],
     template=text_template,
     partial_variables={'format_instruction': quiz_question_parser.get_format_instructions()})
-    
     return prompt_template
   
   def set_feedback_template(self):
     text_template = """
-You are marking an SQL quiz. Generate a list of text comments in response to the user's incorrect answers.
-
+You are marking an SQL quiz. Generate a list of text comments in response to the user's incorrect answers, one comment for each answer.
 The database used in the questions has the following schema:
 {schema}
-
 For each of the following question(s) that the user answered incorrectly, respond with the reason why the model answer is correct, and the user's answer is incorrect:
 {questions_and_answers}
-
 
 {format_instruction}
 {improvement}
@@ -191,17 +182,3 @@ Return nothing but a valid JSON document described above.
     
     return prompt_template
   
-
-############################
-
-# testing
-
-if __name__ == "__main__":
-
-  def _parse_llm_response_test(response):
-    json_text = re.search(r'\{.*\}', response, re.DOTALL)
-    if json_text:
-      return json_text.group(0)
-    raise ValueError('no valid JSON found')
-  
-  print(_parse_llm_response_test("{test:something}"))

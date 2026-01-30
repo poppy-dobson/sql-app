@@ -57,7 +57,6 @@ class UserDatabase:
           result = self._execute_insert_update_delete_query(query)
       return result
     else:
-      print("the query passed to execute_query was not a valid SQL answer")
       raise ValueError
     
   def _execute_select_query(self, query):
@@ -65,9 +64,7 @@ class UserDatabase:
       with self.engine.connect() as conn:
         result = conn.execute(text(query)).fetchall()
       return result
-    except Exception as e:
-      print("failed to execute query")
-      print(str(e))
+    except:
       raise ValueError
     
   def _execute_insert_update_delete_query(self, query):
@@ -90,8 +87,7 @@ class UserDatabase:
           schema = conn.execute(text(self.select_schema_query))
           conn.exec_driver_sql("ROLLBACK") # MIGHT USE THIS LINE
       return schema
-    except Exception as e:
-      print(e)
+    except:
       raise ValueError
   
   def _extract_db_object_from_query(self, query):
@@ -110,12 +106,12 @@ class SQLiteUserDatabase(UserDatabase):
     self.db_file_path = self.write_db_bytes_to_file(self.db_bytes, file_path) # this functionality is a bit weird, might change
     self.rdbms = "SQLite"
 
-    self.assert_valid_db_file()
+    assert self.assert_valid_db_file() # this error gets handled within the app
 
     self.db_engine_string = self.sqlite_engine_string(self.db_file_path)
     self.engine = create_engine(self.db_engine_string)
     
-    # self.sqlite_dbapi_handle_transactions()
+    self.sqlite_dbapi_handle_transactions()
 
     self.select_schema_query = "SELECT sql FROM sqlite_schema WHERE type IN ('table', 'view');"
 
@@ -133,7 +129,7 @@ class SQLiteUserDatabase(UserDatabase):
         f.write(db_bytes.getbuffer())
       return file_path
     except:
-      raise IOError(".db file could not be written")
+      raise IOError
   
   def assert_valid_db_file(self):
     try:
@@ -143,15 +139,12 @@ class SQLiteUserDatabase(UserDatabase):
       if outcome[0] == 0:
         return False
       return True
-    except Exception as e:
-      print("INVALID DB")
-      print(e)
+    except:
       return False
   
   def get_tables(self):
     # retrieves a list of table names from the database
     tables = [row[0] for row in self.execute_query("SELECT tbl_name FROM sqlite_schema WHERE type ='table';")]
-    print(tables)
     return tables
 
   def sqlite_engine_string(self, db_path):
@@ -166,8 +159,7 @@ class SQLiteUserDatabase(UserDatabase):
           result = conn.execute(text(f"SELECT * FROM {db_object};")).fetchall() 
           conn.exec_driver_sql("ROLLBACK")
         return result
-    except Exception as e:
-      print(e)
+    except:
       raise ValueError
 
   def _execute_ddl_query(self, query):
@@ -175,11 +167,10 @@ class SQLiteUserDatabase(UserDatabase):
       with self.engine.connect() as conn:
         with conn.begin() as transaction:
           conn.execute(text(query))
-          schema = conn.execute(text(self.select_schema_query))
+          schema = conn.execute(text(self.select_schema_query)).fetchall()
           conn.exec_driver_sql("ROLLBACK") # MIGHT USE THIS LINE
       return schema
-    except Exception as e:
-      print(e)
+    except:
       raise ValueError
   
   def sqlite_dbapi_handle_transactions(self): # because the sqlite dbapi is stupid
@@ -191,31 +182,4 @@ class SQLiteUserDatabase(UserDatabase):
     def do_begin(conn):
       conn.exec_driver_sql("BEGIN")
   
-
-if __name__ == "__main__":
-  # test here
-  eng_str = "sqlite:///" + "temp/user_db.db"
-  engine = create_engine(eng_str)
-
-  @event.listens_for(engine, "connect")
-  def do_connect(dbapi_connection, connection_record):
-    dbapi_connection.isolation_level = None
-
-  @event.listens_for(engine, "begin")
-  def do_begin(conn):
-    conn.exec_driver_sql("BEGIN")
-    print("transaction begun?")
-
-  with engine.connect() as conn:
-    with conn.begin() as tr:
-      conn.execute(text("INSERT INTO QDEPT VALUES ('Finance', 4, '020-7000-5001', 5001);"))
-      result = conn.execute(text("SELECT * FROM QDEPT;")).fetchall()
-      #try:
-      conn.exec_driver_sql("ROLLBACK;")
-      #except:
-      #  print("errored")
-  for smth in result:
-    print(smth)
-
-
   

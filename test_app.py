@@ -10,6 +10,7 @@ from model import SQLQuizLLM, verify_api_key, _verify_hf_api_key, ModelQuizQuest
 
 @pytest.fixture(scope="class")
 def valid_hf_api_key():
+  load_dotenv()
   return os.environ.get("HUGGINGFACEHUB_API_TOKEN")
 
 @pytest.fixture(scope="class")
@@ -19,11 +20,10 @@ def model():
 
 class TestAPIKeys:
 
-  def test_api_key_verification(valid_hf_api_key):
+  def test_api_key_verification(self, valid_hf_api_key):
     load_dotenv()
     assert verify_api_key("blah") == False
-    #assert verify_api_key(valid_hf_api_key) == True # fixture doesn't work for some reason
-    assert verify_api_key(os.environ.get("HUGGINGFACEHUB_API_TOKEN")) == True
+    assert verify_api_key(valid_hf_api_key) == True
 
 class TestModel:
   pass
@@ -36,9 +36,3 @@ class TestSQLiteDB:
 
 def test_test():
   assert 1 == 1
-
-################
-if __name__ == "__main__":
-  load_dotenv()
-  api = os.environ.get("HUGGINGFACEHUB_API_TOKEN")
-  print(verify_api_key(api))
