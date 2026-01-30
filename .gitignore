@@ -6,3 +6,4 @@ temp/
 .streamlit/secrets.toml
 .pytest_cache/
 tests/
+test_app.py
