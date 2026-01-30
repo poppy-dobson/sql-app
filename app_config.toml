@@ -4,4 +4,4 @@ repo_id = "Qwen/Qwen3-235B-A22B-Instruct-2507"
 provider = "novita"
 
 [quiz]
-num_questions=3 # in the config rather than changeable within the app just to keep an eye on credit usage :))
+num_questions=5 # in the config rather than changeable within the app just to keep an eye on credit usage :))
