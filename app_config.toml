@@ -1,8 +1,7 @@
 [model]
-endpoint="hf"
-# IN FUTURE UPDATES: can be "hf" (huggingface) | "openai" | etc etc
+endpoint="hf" # in the future this could be "hf" (huggingface) | "openai" | etc etc...
 repo_id = "Qwen/Qwen3-235B-A22B-Instruct-2507"
 provider = "novita"
 
 [quiz]
-num_questions=2 # in the config rather than changeable within the app just to keep an eye on credit usage
+num_questions=3 # in the config rather than changeable within the app just to keep an eye on credit usage :))

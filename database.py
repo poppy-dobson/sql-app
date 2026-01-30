@@ -5,13 +5,13 @@ def valid_sql_query(query):
   first_word = query.split()[0].upper()
   if (first_word in ['CREATE', 'INSERT', 'UPDATE', 'ALTER', 'DROP', 'DELETE', 'SELECT', 'WITH']) and (query[-1] == ';') and (query.count(';') == 1):
     return True
-  return False # could be expanded to be more descriptive and tell the user what exactly was wrong with the query
+  return False
 
 class UserDatabase:
   def __init__(self, engine_string:str):
     self.engine = create_engine(engine_string, connect_args={"autocommit": False})
     self.rdbms = engine_string.split('/')[0]
-    self.select_schema_query = "" # implemented in specific child classes
+    self.select_schema_query = "" # overridden by specific child classes __init__
     self.schema = self._set_schema()
     self.tables = self.get_tables()
     self.assert_db_contains_enough_data()
@@ -32,10 +32,8 @@ class UserDatabase:
       if num_rows < 4:
         raise ValueError("a table doesn't contain enough rows of data (4 minimum)")
 
-  def get_tables(self):
-    # retrieves a list of table names from the database
-    tables = self.execute_query("[query to list the tables in the database]")
-    # FIX THE FUNCTIONALITY
+  def get_tables(self): # this should be overriden by the class for the specific rdbms in use
+    tables = []
     return tables
 
   def _set_schema(self):
@@ -168,12 +166,12 @@ class SQLiteUserDatabase(UserDatabase):
         with conn.begin() as transaction:
           conn.execute(text(query))
           schema = conn.execute(text(self.select_schema_query)).fetchall()
-          conn.exec_driver_sql("ROLLBACK") # MIGHT USE THIS LINE
+          conn.exec_driver_sql("ROLLBACK")
       return schema
     except:
       raise ValueError
   
-  def sqlite_dbapi_handle_transactions(self): # because the sqlite dbapi is stupid
+  def sqlite_dbapi_handle_transactions(self): # because the sqlite dbapi is stupid (and i'm using an older version of python than i could be using)
     @event.listens_for(self.engine, "connect")
     def do_connect(dbapi_connection, connection_record):
       dbapi_connection.isolation_level = None
@@ -181,5 +179,3 @@ class SQLiteUserDatabase(UserDatabase):
     @event.listens_for(self.engine, "begin")
     def do_begin(conn):
       conn.exec_driver_sql("BEGIN")
-  
-  

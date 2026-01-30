@@ -6,4 +6,3 @@ langchain
 langchain-huggingface
 python-dotenv
 pytest
-# etc...

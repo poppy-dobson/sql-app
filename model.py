@@ -1,5 +1,4 @@
 import requests
-import os
 import re
 from pydantic import BaseModel, field_validator
 from typing import List
@@ -9,7 +8,7 @@ from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
 
 from database import UserDatabase, SQLiteUserDatabase, valid_sql_query
 
-####################################################
+#################
 
 def verify_api_key(api_key):
   # for now, as hf is the only supported endpoint
@@ -70,9 +69,7 @@ class SQLQuizLLM: # overall handling of the whole process
 
       model = ChatHuggingFace(llm=hf_endpoint) # note to self: find another way of doing this at some point - i don't like the fact it has to use the conversation task
     else:
-      # at the moment:
-      raise ValueError("invalid/unsupported endpoint given in config")
-      # but will handle other endpoints at some point 
+      raise ValueError("invalid/unsupported endpoint given in config") # this would change in the future to accept different endpoints :)))
     return model
 
   def generate_quiz(self, topic_list):
