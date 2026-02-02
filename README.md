@@ -21,12 +21,16 @@ the app uses:
 <br>
 
 ways to run this app:
-- fork it! and use `streamlit run app.py` in the terminal
-- streamlit community cloud [link]
+- fork/clone it! and use `streamlit run app.py` in the terminal
+- streamlit community cloud! [\[link\]](https://sql-quiz-app.streamlit.app/)
 - others TBC...
 
 <br>
 
 it was built using python version 3.11.4
 
-**note**: *none* of this code was 'vibe-coded' / ai-generated! (it's the result of many painful hours spent on stackoverflow and sqlalchemy docs)
+### note
+
+*none* of this code was 'vibe-coded' / ai-generated! (it's the result of many painful hours spent on stackoverflow and sqlalchemy docs)
+
+if you happen to try it and encounter any bugs, let me know!
