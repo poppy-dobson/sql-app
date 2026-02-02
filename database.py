@@ -1,3 +1,4 @@
+# handles database interaction
 from sqlalchemy import create_engine, text, event
 import sqlite3
 
@@ -71,7 +72,7 @@ class UserDatabase:
       with self.engine.connect() as conn:
         with conn.begin() as transaction: # for sqlite this matters less as the file is a copy of the user's database, however for databases with connections the app shouldn't edit any of their data
           conn.execute(text(query))
-          result = conn.execute(text(f"SELECT * FROM {db_object};")).fetchall() # could to self.execute_query but this might break cause it's a conn within a conn
+          result = conn.execute(text(f"SELECT * FROM {db_object};")).fetchall()
           transaction.rollback() # undo any changes made, ensure they are NOT committed :O
         return result
     except:
@@ -83,13 +84,13 @@ class UserDatabase:
         with conn.begin() as transaction:
           conn.execute(text(query))
           schema = conn.execute(text(self.select_schema_query))
-          conn.exec_driver_sql("ROLLBACK") # MIGHT USE THIS LINE
+          conn.exec_driver_sql("ROLLBACK")
       return schema
     except:
       raise ValueError
   
   def _extract_db_object_from_query(self, query):
-    # not applicable to SELECT statements
+    # not needed for SELECT statements
     words = query.upper().split()
     for word in words:
       if word not in ("CREATE", "INSERT", "UPDATE", "ALTER", "DROP", "DELETE") and word not in ("TABLE", "VIEW") and word not in ("FROM", "INTO"):
@@ -101,7 +102,7 @@ class SQLiteUserDatabase(UserDatabase):
 
   def __init__(self, db_bytes, file_path = "temp/user_db.db"):
     self.db_bytes = db_bytes
-    self.db_file_path = self.write_db_bytes_to_file(self.db_bytes, file_path) # this functionality is a bit weird, might change
+    self.db_file_path = self.write_db_bytes_to_file(self.db_bytes, file_path)
     self.rdbms = "SQLite"
 
     assert self.assert_valid_db_file() # this error gets handled within the app
@@ -141,7 +142,6 @@ class SQLiteUserDatabase(UserDatabase):
       return False
   
   def get_tables(self):
-    # retrieves a list of table names from the database
     tables = [row[0] for row in self.execute_query("SELECT tbl_name FROM sqlite_schema WHERE type ='table';")]
     return tables
 
@@ -171,7 +171,7 @@ class SQLiteUserDatabase(UserDatabase):
     except:
       raise ValueError
   
-  def sqlite_dbapi_handle_transactions(self): # because the sqlite dbapi is stupid (and i'm using an older version of python than i could be using)
+  def sqlite_dbapi_handle_transactions(self): # because the sqlite dbapi is odd
     @event.listens_for(self.engine, "connect")
     def do_connect(dbapi_connection, connection_record):
       dbapi_connection.isolation_level = None

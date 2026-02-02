@@ -1,4 +1,4 @@
-# the streamlit page for the 'quiz' section
+# the streamlit page for the quiz section
 import streamlit as st
 from util import load_app_config
 
@@ -146,15 +146,15 @@ def validate_quiz_len(quiz):
   except:
     raise ValueError # is handled outside
 
-def generate_quiz_questions():
+def generate_quiz_questions(): # returns a bool if a valid quiz was/wasn't created
   with st.spinner("generating quiz..."):
     try:
       quiz = st.session_state.model.generate_quiz(st.session_state.topics)
       st.session_state.quiz = quiz
       validate_quiz_len(quiz) # errors if quiz is not the right length
-      return True # a valid quiz was created
-    except: # this is poor error-handling, I will ammend this hopefully in future updates
-      return False # a vlid quiz could not be generated
+      return True
+    except: # i know this is poor error-handling, I will ammend this in the future
+      return False 
 
 def main():
   st.title("the quiz!")
@@ -191,7 +191,7 @@ def main():
       
   if st.session_state.submitted:
     st.toast("u submitted the quiz!")
-    display_quiz() # should have element.answerable = False
+    display_quiz() # element.answerable will be False
     quiz_submitted()
   
 main()

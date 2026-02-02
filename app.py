@@ -1,3 +1,4 @@
+# the home page to initially run with streamlit
 import streamlit as st
 
 st.session_state.database = None # UserDatabase, SQLiteUserDatabase, etc object
@@ -5,11 +6,10 @@ st.session_state.database = None # UserDatabase, SQLiteUserDatabase, etc object
 st.session_state.db_file_bytes = None
 st.session_state.db_path = "temp/user_db.db"
 st.session_state.topics = []
-st.session_state.num_questions = 5 # in future: this should read from a config file to be manually set
 
 st.session_state.llm_api_key = None
 
-# used in quiz.py, initialised here so they don't reset when the quiz page re-runs
+# used in quiz.py, initialised here 
 st.session_state.quiz_question_form_elements = []
 st.session_state.user_answers = []
 st.session_state.quiz = None
@@ -86,7 +86,7 @@ with st.sidebar:
   st.session_state.topics = topic_selection
 
   # button to take this data and load the test page, run the model etc...
-  button_clicked = st.button("Make me a quiz!", # on_click=button_pressed,
+  button_clicked = st.button("Make me a quiz!",
                              args=[uploaded_db_file, topic_selection])
   
   if button_clicked:

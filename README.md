@@ -1,7 +1,6 @@
-## SQL quiz app!
-an application designed to support ijc212 students with their exam preparation :) 
+## SQL quiz app
 
-~~ignore the fact I didn't complete nor deploy the app in time for the exam...~~
+an application designed to support students with their SQL exam preparation :) 
 
 <br>
 
@@ -21,12 +20,13 @@ the app uses:
 
 <br>
 
-**TBC** ways to run this app:
+ways to run this app:
 - fork it! and use `streamlit run app.py` in the terminal
-- docker!
 - streamlit community cloud [link]
-- huggingface spaces [link]
+- others TBC...
 
 <br>
 
-*none* of this code is ai-generated / 'vibe-coded'! (it's just a result of many painful hours scrolling through stackoverflow and streamlit documentation)
+it was built using python version 3.11.4
+
+**note**: *none* of this code was 'vibe-coded' / ai-generated! (it's the result of many painful hours spent on stackoverflow and sqlalchemy docs)

@@ -1,3 +1,4 @@
+# handles llm interaction
 import requests
 import re
 from pydantic import BaseModel, field_validator
@@ -43,6 +44,8 @@ class ModelFeedback(BaseModel):
 
 feedback_parser = PydanticOutputParser(pydantic_object=ModelFeedback)
 
+#################
+
 class SQLQuizLLM: # overall handling of the whole process
   def __init__(self, config_dict, api_key, database: UserDatabase | SQLiteUserDatabase):
     self.config = config_dict
@@ -67,7 +70,7 @@ class SQLQuizLLM: # overall handling of the whole process
       max_new_tokens=768,
       huggingfacehub_api_token=self.api_key)
 
-      model = ChatHuggingFace(llm=hf_endpoint) # note to self: find another way of doing this at some point - i don't like the fact it has to use the conversation task
+      model = ChatHuggingFace(llm=hf_endpoint)
     else:
       raise ValueError("invalid/unsupported endpoint given in config") # this would change in the future to accept different endpoints :)))
     return model
