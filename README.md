@@ -14,15 +14,15 @@ this is a streamlit web app, that:
 
 the app uses:
 - streamlit for UI
-- huggingface to provide a model (API key required from user)
-- langchain to handle prompts and outputs from the model
+- huggingface to provide a model (API key required from user) & langchain to handle prompts and outputs from the model
+- sqlalchemy to handle database interactions (currently only sqlite supported)
 - .toml configuration files
 
 <br>
 
-ways to run this app:
+ways to run/use this app:
 - fork/clone it! and use `streamlit run app.py` in the terminal
-- streamlit community cloud! [\[link\]](https://sql-quiz-app.streamlit.app/)
+- streamlit community cloud! -> [\[link\]](https://sql-quiz-app.streamlit.app/)
 - others TBC...
 
 <br>
