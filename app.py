@@ -16,10 +16,11 @@ st.session_state.quiz = None
 st.session_state.submitted = False
 
 from database import SQLiteUserDatabase # at the moment, only SQLite supported :P
-from util import remove_file_if_exists
+from util import remove_file_if_exists, create_temp_folder
 from model import verify_api_key
 
 remove_file_if_exists(st.session_state.db_path)
+create_temp_folder()
 
 st.header("SQL practice app :0")
 
